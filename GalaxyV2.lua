@@ -4932,7 +4932,7 @@ if game.PlaceId == 10449761463 then
 			ZK_TargetList.Visible = false
 			ZK_TargetList.Active = true
 			ZK_TargetList.ClipsDescendants = true
-			ZK_TargetList.ZIndex = 25
+			ZK_TargetList.ZIndex = 50
 			ZK_TargetList.ElasticBehavior = Enum.ElasticBehavior.Always
 			ZK_TargetList.Parent = ZK_TargetFrame
 
@@ -4991,7 +4991,7 @@ if game.PlaceId == 10449761463 then
 						count = count + 1
 
 						local row = Instance.new("TextButton")
-						row.Size = UDim2.new(1, 0, 0, 28)
+						row.Size = UDim2.new(1, -4, 0, 34)
 						row.BackgroundTransparency = 1
 						row.BorderSizePixel = 0
 						row.AutoButtonColor = false
@@ -5005,7 +5005,7 @@ if game.PlaceId == 10449761463 then
 						row.LayoutOrder = count
 						row.Active = true
 						row.Selectable = true
-						row.ZIndex = 26
+						row.ZIndex = 51
 						row.Parent = ZK_TargetList
 
 						row.MouseEnter:Connect(function()
@@ -5022,11 +5022,8 @@ if game.PlaceId == 10449761463 then
 							}):Play()
 						end)
 
-						row.MouseButton1Click:Connect(function()
-							ZK_SetTarget(player)
-						end)
-
-						row.TouchTap:Connect(function()
+						-- Activated is the reliable cross-platform button event.
+						row.Activated:Connect(function()
 							ZK_SetTarget(player)
 						end)
 
@@ -5036,7 +5033,7 @@ if game.PlaceId == 10449761463 then
 
 				if count == 0 then
 					local empty = Instance.new("TextLabel")
-					empty.Size = UDim2.new(1, 0, 0, 28)
+					empty.Size = UDim2.new(1, 0, 0, 34)
 					empty.BackgroundTransparency = 1
 					empty.Text = "No players"
 					empty.TextColor3 = ZK_Theme.GreyText
@@ -5048,10 +5045,11 @@ if game.PlaceId == 10449761463 then
 					count = 1
 				end
 
-				ZK_TargetList.CanvasSize = UDim2.new(0, 0, 0, count * 28)
+				local rowHeight = 34
+				ZK_TargetList.CanvasSize = UDim2.new(0, 0, 0, count * rowHeight)
 				ZK_TargetList.Size = UDim2.new(
 					1, 0, 0,
-					math.min(130, math.max(28, count * 28))
+					math.min(156, math.max(rowHeight, count * rowHeight))
 				)
 			end
 
@@ -5080,11 +5078,8 @@ if game.PlaceId == 10449761463 then
 				end
 			end
 
-			ZK_TargetButton.MouseButton1Click:Connect(function()
-				ZK_SetDropdownOpen(not ZK_DropdownOpen)
-			end)
-
-			ZK_TargetButton.TouchTap:Connect(function()
+			-- Activated handles mouse clicks and mobile taps with one path.
+			ZK_TargetButton.Activated:Connect(function()
 				ZK_SetDropdownOpen(not ZK_DropdownOpen)
 			end)
 
