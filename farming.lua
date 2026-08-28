@@ -453,6 +453,65 @@ task.spawn(function()
 		    return false
 		end
 
+		local martialArtistCache = setmetatable({}, { __mode = "k" })
+
+		local function characterIsMartialArtist(character)
+		    if not character then
+		        return false
+		    end
+		    local cached = martialArtistCache[character]
+		    if cached ~= nil then
+		        return cached
+		    end
+
+		    local result = false
+		    if string.find(string.lower(character.Name), "martial artist", 1, true) then
+		        result = true
+		    end
+
+		    if not result then
+		        for _, descendant in ipairs(character:GetDescendants()) do
+		            if descendant:IsA("Tool") and string.find(string.lower(descendant.Name), "martial artist", 1, true) then
+		                result = true
+		                break
+		            end
+		        end
+		    end
+
+		    if not result then
+		        local player = Players:GetPlayerFromCharacter(character)
+		        if player then
+		            local backpack = player:FindFirstChildOfClass("Backpack")
+		            if backpack then
+		                for _, tool in ipairs(backpack:GetChildren()) do
+		                    if tool:IsA("Tool") and string.find(string.lower(tool.Name), "martial artist", 1, true) then
+		                        result = true
+		                        break
+		                    end
+		                end
+		            end
+		        end
+		    end
+
+		    martialArtistCache[character] = result
+		    return result
+		end
+
+		local function findOwningCharacter(instance)
+		    for _, player in ipairs(Players:GetPlayers()) do
+		        local character = player.Character
+		        if character and (instance == character or instance:IsDescendantOf(character) or instance:IsDescendantOf(player)) then
+		            return character
+		        end
+		    end
+		    return nil
+		end
+
+		local function isMartialArtistOwned(instance)
+		    local character = findOwningCharacter(instance)
+		    return characterIsMartialArtist(character)
+		end
+
 		local ULT_KEEP_WORDS = {
 		    "ult", "ultimate", "dragon", "skill", "burst", "awaken", "transform",
 		    "unleash", "phoenix", "beast", "titan", "summon",
@@ -534,13 +593,13 @@ task.spawn(function()
 		    if isLocalPlayerCharacter(instance) then
 		        return true
 		    end
-		    -- Never touch anything owned by any player (character, backpack, skills,
-		    -- combo/streak trackers, equipped skill VFX) - this is the martial
-		    -- artist's skill 3 / streak fix.
-		    if isPlayerOwned(instance) then
+		    -- Only protect another player's stuff (character, backpack, skills,
+		    -- combo/streak trackers, equipped skill VFX) if they're Martial Artist.
+		    -- Every other class gets fully stripped.
+		    if isPlayerOwned(instance) and isMartialArtistOwned(instance) then
 		        return true
 		    end
-		    if isStreakOrSkillRelated(instance) then
+		    if isStreakOrSkillRelated(instance) and isMartialArtistOwned(instance) then
 		        return true
 		    end
 
@@ -595,7 +654,7 @@ task.spawn(function()
 		    if isLocalPlayerCharacter(instance) then
 		        return false
 		    end
-		    if isStreakOrSkillRelated(instance) then
+		    if isStreakOrSkillRelated(instance) and isMartialArtistOwned(instance) then
 		        return false
 		    end
 		    if not VFX_CLASSES[instance.ClassName] then
@@ -720,10 +779,27 @@ task.spawn(function()
 		end
 
 		local function cleanCharacterItem(item)
-		    -- Full hands-off: clothes, accessories, streak colors, and character FX
-		    -- (martial artist trails/beams/etc.) must never be removed or restyled.
-		    -- Only shadow casting is turned off, which has no visual effect on color
-		    -- or animation.
+		    -- This runs on characters that already failed the Martial Artist check
+		    -- above (Martial Artist chars never reach here - they return early).
+		    -- So: strip all VFX/accessories from non-Martial-Artist characters,
+		    -- keep rig/limbs/humanoid intact so animation still works.
+		    if isCoreCharacterPart(item) then
+		        if item:IsA("BasePart") then
+		            setIfDifferent(item, "CastShadow", false)
+		        end
+		        return
+		    end
+
+		    if VFX_CLASSES[item.ClassName] then
+		        disableAndDestroyVisual(item)
+		        return
+		    end
+
+		    if ACCESSORY_CLASSES[item.ClassName] then
+		        safeDestroy(item)
+		        return
+		    end
+
 		    if item:IsA("BasePart") then
 		        setIfDifferent(item, "CastShadow", false)
 		    end
@@ -805,9 +881,10 @@ task.spawn(function()
 		    -- counters often live under Workspace.CurrentCamera (billboard tracking
 		    -- the local character) and would otherwise hit disableAndDestroyVisual
 		    -- before ever reaching this check.
-		    if isPlayerOwned(instance) or isStreakOrSkillRelated(instance) then
-		        -- Any player's character, backpack, equipped skill tools, streak/combo
-		        -- UI, or attributes. Leave completely untouched.
+		    if (isPlayerOwned(instance) or isStreakOrSkillRelated(instance)) and isMartialArtistOwned(instance) then
+		        -- Any Martial Artist player's character, backpack, equipped skill
+		        -- tools, streak/combo UI, or attributes. Leave completely untouched.
+		        -- Non-Martial-Artist players fall through and get fully cleaned.
 		        return
 		    end
 
