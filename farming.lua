@@ -1,1077 +1,8 @@
--- ============================================================
--- Zyke Farm Key System
--- Isolated in its own function to avoid Luau's top-level local/register limit.
--- ============================================================
-getgenv().__ZYKE_KEY_GATE_RUNNER = function()
-	local GALAXY_KEY = "GXLY_FREE_DEMOKEY_7"
-	local GALAXY_DISCORD_INVITE = "https://discord.gg/cpfeSSmqbv"
-	local Players = game:GetService("Players")
-	local CoreGui = game:GetService("CoreGui")
-	local LocalPlayer = Players.LocalPlayer
-
-	if not LocalPlayer then
-		LocalPlayer = Players.PlayerAdded:Wait()
-	end
-
-	-- Hide an already-open farm GUI while the key window is active.
-	local existingFarmGui = CoreGui:FindFirstChild("GalaxyFarmUI")
-	if existingFarmGui and existingFarmGui:IsA("ScreenGui") then
-		existingFarmGui.Enabled = false
-	end
-
-	-- Remove stale copies of the key UI.
-	pcall(function()
-		local old = CoreGui:FindFirstChild("ZykeFarmKeySystem")
-		if old then old:Destroy() end
-	end)
-	pcall(function()
-		local pg = LocalPlayer:FindFirstChildOfClass("PlayerGui") or LocalPlayer:WaitForChild("PlayerGui")
-		local old = pg:FindFirstChild("ZykeFarmKeySystem")
-		if old then old:Destroy() end
-	end)
-	pcall(function()
-		if type(gethui) == "function" then
-			local hui = gethui()
-			local old = hui and hui:FindFirstChild("ZykeFarmKeySystem")
-			if old then old:Destroy() end
-		end
-	end)
-
-	local keyGui = Instance.new("ScreenGui")
-	keyGui.Name = "ZykeFarmKeySystem"
-	keyGui.ResetOnSpawn = false
-	keyGui.IgnoreGuiInset = true
-	keyGui.DisplayOrder = 999999
-	keyGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-
-	-- PlayerGui is the safest visible parent across PC/mobile executors.
-	local playerGui = LocalPlayer:FindFirstChildOfClass("PlayerGui") or LocalPlayer:WaitForChild("PlayerGui")
-	local parented = pcall(function()
-		keyGui.Parent = playerGui
-	end)
-	if not parented or not keyGui.Parent then
-		pcall(function()
-			if type(gethui) == "function" then
-				keyGui.Parent = gethui()
-			else
-				keyGui.Parent = CoreGui
-			end
-		end)
-	end
-	if not keyGui.Parent then
-		warn("[Zyke Key] Could not parent key GUI")
-		return false, false
-	end
-
-	local main = Instance.new("Frame")
-	main.Name = "Main"
-	main.AnchorPoint = Vector2.new(0.5, 0.5)
-	main.Position = UDim2.fromScale(0.5, 0.5)
-	main.Size = UDim2.fromOffset(310, 190)
-	main.BackgroundColor3 = Color3.fromRGB(18, 19, 24)
-	main.BorderSizePixel = 0
-	main.Active = true
-	main.Draggable = true
-	main.ZIndex = 10
-	main.Parent = keyGui
-
-	local corner = Instance.new("UICorner")
-	corner.CornerRadius = UDim.new(0, 12)
-	corner.Parent = main
-
-	local stroke = Instance.new("UIStroke")
-	stroke.Color = Color3.fromRGB(52, 54, 66)
-	stroke.Thickness = 1
-	stroke.Parent = main
-
-	local title = Instance.new("TextLabel")
-	title.BackgroundTransparency = 1
-	title.Position = UDim2.fromOffset(16, 12)
-	title.Size = UDim2.new(1, -32, 0, 28)
-	title.Font = Enum.Font.GothamBold
-	title.Text = "Zyke farm"
-	title.TextColor3 = Color3.fromRGB(245, 245, 248)
-	title.TextSize = 20
-	title.TextXAlignment = Enum.TextXAlignment.Left
-	title.ZIndex = 11
-	title.Parent = main
-
-	local prompt = Instance.new("TextLabel")
-	prompt.BackgroundTransparency = 1
-	prompt.Position = UDim2.fromOffset(16, 45)
-	prompt.Size = UDim2.new(1, -32, 0, 20)
-	prompt.Font = Enum.Font.Gotham
-	prompt.Text = "Enter a key:"
-	prompt.TextColor3 = Color3.fromRGB(165, 167, 180)
-	prompt.TextSize = 13
-	prompt.TextXAlignment = Enum.TextXAlignment.Left
-	prompt.ZIndex = 11
-	prompt.Parent = main
-
-	local keyBox = Instance.new("TextBox")
-	keyBox.Name = "KeyBox"
-	keyBox.Position = UDim2.fromOffset(16, 68)
-	keyBox.Size = UDim2.new(1, -32, 0, 38)
-	keyBox.BackgroundColor3 = Color3.fromRGB(29, 31, 39)
-	keyBox.BorderSizePixel = 0
-	keyBox.ClearTextOnFocus = false
-	keyBox.Font = Enum.Font.Gotham
-	keyBox.PlaceholderText = "Enter key here"
-	keyBox.PlaceholderColor3 = Color3.fromRGB(110, 112, 125)
-	keyBox.Text = ""
-	keyBox.TextColor3 = Color3.fromRGB(245, 245, 248)
-	keyBox.TextSize = 14
-	keyBox.ZIndex = 11
-	keyBox.Parent = main
-
-	local keyBoxCorner = Instance.new("UICorner")
-	keyBoxCorner.CornerRadius = UDim.new(0, 8)
-	keyBoxCorner.Parent = keyBox
-
-	local keyPadding = Instance.new("UIPadding")
-	keyPadding.PaddingLeft = UDim.new(0, 10)
-	keyPadding.PaddingRight = UDim.new(0, 10)
-	keyPadding.Parent = keyBox
-
-	local getKeyButton = Instance.new("TextButton")
-	getKeyButton.Name = "GetKey"
-	getKeyButton.Position = UDim2.fromOffset(16, 116)
-	getKeyButton.Size = UDim2.new(0.5, -21, 0, 38)
-	getKeyButton.BackgroundColor3 = Color3.fromRGB(48, 50, 61)
-	getKeyButton.BorderSizePixel = 0
-	getKeyButton.AutoButtonColor = true
-	getKeyButton.Font = Enum.Font.GothamBold
-	getKeyButton.Text = "Get Key"
-	getKeyButton.TextColor3 = Color3.fromRGB(245, 245, 248)
-	getKeyButton.TextSize = 13
-	getKeyButton.ZIndex = 11
-	getKeyButton.Parent = main
-	local getKeyCorner = Instance.new("UICorner")
-	getKeyCorner.CornerRadius = UDim.new(0, 8)
-	getKeyCorner.Parent = getKeyButton
-
-	local submitButton = Instance.new("TextButton")
-	submitButton.Name = "Submit"
-	submitButton.Position = UDim2.new(0.5, 5, 0, 116)
-	submitButton.Size = UDim2.new(0.5, -21, 0, 38)
-	submitButton.BackgroundColor3 = Color3.fromRGB(72, 157, 111)
-	submitButton.BorderSizePixel = 0
-	submitButton.AutoButtonColor = true
-	submitButton.Font = Enum.Font.GothamBold
-	submitButton.Text = "Submit"
-	submitButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-	submitButton.TextSize = 13
-	submitButton.ZIndex = 11
-	submitButton.Parent = main
-	local submitCorner = Instance.new("UICorner")
-	submitCorner.CornerRadius = UDim.new(0, 8)
-	submitCorner.Parent = submitButton
-
-	local status = Instance.new("TextLabel")
-	status.BackgroundTransparency = 1
-	status.Position = UDim2.fromOffset(16, 160)
-	status.Size = UDim2.new(1, -32, 0, 18)
-	status.Font = Enum.Font.Gotham
-	status.Text = ""
-	status.TextColor3 = Color3.fromRGB(150, 152, 165)
-	status.TextSize = 11
-	status.TextXAlignment = Enum.TextXAlignment.Center
-	status.ZIndex = 11
-	status.Parent = main
-
-	local unlocked = false
-
-	local function copyInvite()
-		local ok = false
-		if type(setclipboard) == "function" then
-			ok = pcall(setclipboard, GALAXY_DISCORD_INVITE)
-		elseif type(toclipboard) == "function" then
-			ok = pcall(toclipboard, GALAXY_DISCORD_INVITE)
-		elseif type(writeclipboard) == "function" then
-			ok = pcall(writeclipboard, GALAXY_DISCORD_INVITE)
-		elseif syn and type(syn.write_clipboard) == "function" then
-			ok = pcall(syn.write_clipboard, GALAXY_DISCORD_INVITE)
-		end
-		if ok then
-			status.Text = "Discord link copied!"
-			status.TextColor3 = Color3.fromRGB(100, 210, 145)
-		else
-			status.Text = "Clipboard not supported."
-			status.TextColor3 = Color3.fromRGB(235, 175, 85)
-		end
-	end
-
-	local function submit()
-		local entered = tostring(keyBox.Text or ""):gsub("^%s+", ""):gsub("%s+$", "")
-		if entered == GALAXY_KEY then
-			unlocked = true
-			status.Text = "Key accepted!"
-			status.TextColor3 = Color3.fromRGB(100, 210, 145)
-		else
-			status.Text = "Invalid key."
-			status.TextColor3 = Color3.fromRGB(235, 100, 110)
-		end
-	end
-
-	getKeyButton.Activated:Connect(copyInvite)
-	submitButton.Activated:Connect(submit)
-	keyBox.FocusLost:Connect(function(enterPressed)
-		if enterPressed then submit() end
-	end)
-
-	repeat task.wait(0.05) until unlocked or keyGui.Parent == nil
-	if not unlocked then
-		return false, false
-	end
-
-	pcall(function() keyGui:Destroy() end)
-
-	if existingFarmGui and existingFarmGui.Parent then
-		existingFarmGui.Enabled = true
-		return true, true
-	end
-
-	return true, false
-end
-
-getgenv().__ZYKE_KEY_GATE_OK, getgenv().__ZYKE_REUSED_FARM_GUI = getgenv().__ZYKE_KEY_GATE_RUNNER()
-getgenv().__ZYKE_KEY_GATE_RUNNER = nil
-
-if not getgenv().__ZYKE_KEY_GATE_OK then
-	getgenv().__ZYKE_KEY_GATE_OK = nil
-	getgenv().__ZYKE_REUSED_FARM_GUI = nil
-	return
-end
-
-getgenv().__ZYKE_KEY_GATE_OK = nil
-if getgenv().__ZYKE_REUSED_FARM_GUI then
-	getgenv().__ZYKE_REUSED_FARM_GUI = nil
-	return
-end
-getgenv().__ZYKE_REUSED_FARM_GUI = nil
-
--- Only apply the farm execution guard after a valid key.
 if getgenv().ScriptExecuted then
 	return
 end
+
 getgenv().ScriptExecuted = true
-
--- ============================================================
--- Embedded TSB Ultra Baseplate Optimizer
--- Runs independently so optimizer locals/errors do not stop rage-kill.
--- ============================================================
-task.spawn(function()
-	local optimizerOk, optimizerErr = pcall(function()
-		-- TSB Ultra Baseplate Optimizer (smooth/event-driven edition) - camera/anim-safe fix
-		-- Performs the expensive cleanup once in small chunks, then handles only new objects.
-
-		local Players = game:GetService("Players")
-		local Lighting = game:GetService("Lighting")
-		local RunService = game:GetService("RunService")
-		local Workspace = game:GetService("Workspace")
-		local Terrain = Workspace:FindFirstChildOfClass("Terrain")
-
-		local CONFIG = {
-		    -- Avatars (clothes, accessories, martial artist FX/streaks, camera anim)
-		    -- must stay untouched. Only the map/world gets optimized.
-		    deleteAccessories = false,
-		    deleteCharacterVfx = true,
-		    deleteTreesByShapeAndColor = true,
-		    deleteMapDecor = true,
-		    deleteTexturesAndMeshes = true,
-		    flattenRemainingMap = true,
-
-		    batchSize = 70,
-		    frameBudgetSeconds = 0.0015,
-		}
-
-		local environment = _G
-		pcall(function()
-		    if type(getgenv) == "function" then
-		        environment = getgenv()
-		    end
-		end)
-
-		local oldController = environment.__TSB_ULTRA_OPTIMIZER
-		if type(oldController) == "table" and type(oldController.stop) == "function" then
-		    pcall(oldController.stop)
-		end
-
-		local controller = {
-		    running = true,
-		    connections = {},
-		}
-		environment.__TSB_ULTRA_OPTIMIZER = controller
-
-		local counters = {
-		    deleted = 0,
-		    flattened = 0,
-		    disabled = 0,
-		    processed = 0,
-		}
-
-		local removed = setmetatable({}, { __mode = "k" })
-		local processed = setmetatable({}, { __mode = "k" })
-		local queued = setmetatable({}, { __mode = "k" })
-
-		local queue = {}
-		local queueHead = 1
-		local queueTail = 0
-
-		-- Never touch these: destroying/mutating them is what broke camera shake and
-		-- limb animation before (rig linkage + camera-attached FX rely on them).
-		local PROTECTED_CLASSES = {
-		    Attachment = true,
-		    Motor6D = true,
-		    Motor = true,
-		    Weld = true,
-		    WeldConstraint = true,
-		    Bone = true,
-		    Animator = true,
-		    AnimationController = true,
-		    Humanoid = true,
-		    Camera = true,
-		    BoneAttachment = true,
-		}
-
-		local NAME_KILL_WORDS = {
-		    "tree", "leaf", "leaves", "branch", "bush", "grass", "plant", "foliage",
-		    "trunk", "wood", "log", "palm", "shrub", "vine",
-		    "effect", "effects", "vfx", "fx", "particle", "particles", "trail", "beam",
-		    "smoke", "dust", "debris", "rubble", "shockwave", "slash", "impact", "explosion",
-		    "aura", "spark", "ring", "wind", "afterimage", "hitfx",
-		    "rock", "crate", "barrel", "bench", "chair", "table", "lamp", "sign", "fence",
-		    "prop", "decor", "decoration", "detail", "garbage", "trash",
-		}
-
-		local KEEP_WORDS = {
-		    "baseplate", "base", "floor", "ground", "road", "street", "sidewalk", "spawn",
-		    "arena", "platform", "plate", "safezone",
-		}
-
-		local VFX_CLASSES = {
-		    ParticleEmitter = true,
-		    Trail = true,
-		    Beam = true,
-		    Smoke = true,
-		    Fire = true,
-		    Sparkles = true,
-		    Explosion = true,
-		    Highlight = true,
-		    PointLight = true,
-		    SpotLight = true,
-		    SurfaceLight = true,
-		    Decal = true,
-		    Texture = true,
-		    SurfaceAppearance = true,
-		    PostEffect = true,
-		    BloomEffect = true,
-		    BlurEffect = true,
-		    ColorCorrectionEffect = true,
-		    DepthOfFieldEffect = true,
-		    SunRaysEffect = true,
-		}
-
-		local ACCESSORY_CLASSES = {
-		    Accessory = true,
-		    Hat = true,
-		    Accoutrement = true,
-		    ShirtGraphic = true,
-		}
-
-		local function connect(signal, callback)
-		    local connection = signal:Connect(callback)
-		    table.insert(controller.connections, connection)
-		    return connection
-		end
-
-		function controller.stop()
-		    if not controller.running then
-		        return
-		    end
-
-		    controller.running = false
-		    for _, connection in ipairs(controller.connections) do
-		        pcall(function()
-		            connection:Disconnect()
-		        end)
-		    end
-		    table.clear(controller.connections)
-		    table.clear(queue)
-
-		    if environment.__TSB_ULTRA_OPTIMIZER == controller then
-		        environment.__TSB_ULTRA_OPTIMIZER = nil
-		    end
-		end
-
-		local function nameHas(instance, words)
-		    local name = string.lower(instance.Name)
-		    for _, word in ipairs(words) do
-		        if string.find(name, word, 1, true) then
-		            return true
-		        end
-		    end
-		    return false
-		end
-
-		local function isCharacterModel(instance)
-		    return instance:IsA("Model") and instance:FindFirstChildOfClass("Humanoid") ~= nil
-		end
-
-		local function characterOwner(instance)
-		    local model = instance:FindFirstAncestorOfClass("Model")
-		    if model and model:FindFirstChildOfClass("Humanoid") then
-		        return Players:GetPlayerFromCharacter(model), model
-		    end
-		    return nil, nil
-		end
-
-		local function isUnderCamera(instance)
-		    local camera = Workspace.CurrentCamera
-		    return camera ~= nil and instance:IsDescendantOf(camera)
-		end
-
-		local function isLocalPlayerCharacter(instance)
-		    local localPlayer = Players.LocalPlayer
-		    local character = localPlayer and localPlayer.Character
-		    if not character then
-		        return false
-		    end
-		    return instance == character or instance:IsDescendantOf(character)
-		end
-
-		local function isPlayerOwned(instance)
-		    for _, player in ipairs(Players:GetPlayers()) do
-		        local character = player.Character
-		        if character and instance:IsDescendantOf(character) then
-		            return true
-		        end
-		        if instance:IsDescendantOf(player) then
-		            return true
-		        end
-		    end
-		    return false
-		end
-
-		local function characterIsMartialArtist(character)
-		    if not character then
-		        return false
-		    end
-
-		    -- In this farm, TSB's Martial Artist is the "Purple" character.
-		    local classAttribute = character:GetAttribute("Character")
-		    if type(classAttribute) == "string" then
-		        local lowered = string.lower(classAttribute)
-		        if lowered == "purple" or lowered == "martial artist" or lowered == "martialartist" then
-		            return true
-		        end
-		    end
-
-		    local classValue = character:FindFirstChild("Class")
-		    if classValue and classValue:IsA("StringValue") then
-		        local lowered = string.lower(classValue.Value)
-		        if lowered == "martial artist" or lowered == "martialartist" then
-		            return true
-		        end
-		    end
-
-		    return string.find(string.lower(character.Name), "martial artist", 1, true) ~= nil
-		end
-
-		local LocalPlayer = Players.LocalPlayer
-
-		local function isLocalMartialArtistActive()
-		    local character = LocalPlayer and LocalPlayer.Character
-		    return character ~= nil and characterIsMartialArtist(character)
-		end
-
-		local function isDirectLocalMartialArtistObject(instance)
-		    local character = LocalPlayer and LocalPlayer.Character
-		    if not character or not characterIsMartialArtist(character) then
-		        return false
-		    end
-		    return instance == character or instance:IsDescendantOf(character)
-		end
-
-		local function hasLocalOwnerMetadata(instance)
-		    if not isLocalMartialArtistActive() then
-		        return false
-		    end
-
-		    local character = LocalPlayer.Character
-		    local cursor = instance
-		    local depth = 0
-		    while cursor and depth < 7 do
-		        depth += 1
-
-		        for _, attrName in ipairs({ "Owner", "Creator", "Player", "PlayerName" }) do
-		            local value = cursor:GetAttribute(attrName)
-		            if type(value) == "string" and value == LocalPlayer.Name then
-		                return true
-		            end
-		        end
-
-		        for _, attrName in ipairs({ "UserId", "OwnerUserId", "CreatorUserId" }) do
-		            local value = cursor:GetAttribute(attrName)
-		            if tonumber(value) == LocalPlayer.UserId then
-		                return true
-		            end
-		        end
-
-		        for _, valueName in ipairs({ "Owner", "Creator", "Player", "Character" }) do
-		            local valueObject = cursor:FindFirstChild(valueName)
-		            if valueObject and valueObject:IsA("ObjectValue") then
-		                if valueObject.Value == LocalPlayer or valueObject.Value == character then
-		                    return true
-		                end
-		            end
-		        end
-
-		        cursor = cursor.Parent
-		    end
-
-		    return false
-		end
-
-		local function isProtectedMartialArtistEffect(instance)
-		    return isDirectLocalMartialArtistObject(instance) or hasLocalOwnerMetadata(instance)
-		end
-
-		local ULT_KEEP_WORDS = {
-		    "ult", "ultimate", "dragon", "skill", "burst", "awaken", "transform",
-		    "unleash", "phoenix", "beast", "titan", "summon",
-		}
-
-		local function isStreakOrSkillRelated(instance)
-		    local name = string.lower(instance.Name)
-		    if string.find(name, "streak", 1, true) or string.find(name, "combo", 1, true) then
-		        return true
-		    end
-		    if instance:IsA("BillboardGui") or instance:IsA("SurfaceGui") or instance:IsA("ScreenGui") then
-		        return true
-		    end
-		    -- Anything nested inside a BillboardGui/SurfaceGui/ScreenGui (the
-		    -- TextLabel/Frame/ImageLabel that actually renders the streak number)
-		    -- must be protected too - only checking the GUI root let its children
-		    -- slip through and get disabled/destroyed when the GUI wasn't parented
-		    -- directly under a character.
-		    if instance:FindFirstAncestorWhichIsA("BillboardGui")
-		        or instance:FindFirstAncestorWhichIsA("SurfaceGui")
-		        or instance:FindFirstAncestorWhichIsA("ScreenGui") then
-		        return true
-		    end
-		    -- TSB's killstreak counter lives as a standalone tree
-		    -- (Workspace.Cutscenes.Billboard.Killstreak) that isn't parented under
-		    -- any character, so isPlayerOwned never protects it. Walk every
-		    -- ancestor by name so the whole Cutscenes/Billboard/Killstreak chain,
-		    -- and anything nested inside it, is whitelisted regardless of depth.
-		    local ancestor = instance
-		    while ancestor do
-		        local ancestorName = string.lower(ancestor.Name)
-		        if string.find(ancestorName, "streak", 1, true)
-		            or string.find(ancestorName, "combo", 1, true)
-		            or ancestorName == "cutscenes" then
-		            return true
-		        end
-		        ancestor = ancestor.Parent
-		    end
-		    -- Ult/skill VFX (e.g. dragon summon models) often spawn as free-standing
-		    -- Workspace models, not parented to a character. Whitelist by name so
-		    -- they never get treated as map decor/trees and disabled or destroyed.
-		    if nameHas(instance, ULT_KEEP_WORDS) then
-		        return true
-		    end
-		    local parentModel = instance:FindFirstAncestorOfClass("Model")
-		    if parentModel and nameHas(parentModel, ULT_KEEP_WORDS) then
-		        return true
-		    end
-		    return false
-		end
-
-		local function isLocalPlayerCharacter(instance)
-		    local character = LocalPlayer and LocalPlayer.Character
-		    if not character then
-		        return false
-		    end
-		    return instance == character or instance:IsDescendantOf(character)
-		end
-
-		local function isCoreCharacterPart(instance)
-		    -- Hard protections that fix the camera/animation breakage.
-		    if PROTECTED_CLASSES[instance.ClassName] then
-		        return true
-		    end
-		    if isUnderCamera(instance) then
-		        return true
-		    end
-		    if instance:FindFirstAncestorWhichIsA("Tool") then
-		        return true
-		    end
-		    -- Preserve every object/effect belonging to the LOCAL Martial Artist only.
-		    -- Other characters still keep their rig, joints and humanoid, but their VFX
-		    -- are allowed to fall through to the cleanup path.
-		    if isProtectedMartialArtistEffect(instance) then
-		        return true
-		    end
-
-		    local _, character = characterOwner(instance)
-		    if not character then
-		        return false
-		    end
-
-		    if instance:IsA("BasePart") then
-		        return instance.Name == "HumanoidRootPart"
-		            or instance.Name == "Head"
-		            or instance.Name == "Torso"
-		            or instance.Name == "UpperTorso"
-		            or instance.Name == "LowerTorso"
-		            or string.find(instance.Name, "Arm", 1, true) ~= nil
-		            or string.find(instance.Name, "Leg", 1, true) ~= nil
-		            or string.find(instance.Name, "Hand", 1, true) ~= nil
-		            or string.find(instance.Name, "Foot", 1, true) ~= nil
-		    end
-
-		    return instance:IsA("Humanoid")
-		        or instance:IsA("Animator")
-		        or instance:IsA("Motor6D")
-		        or instance:IsA("Attachment")
-		end
-
-		local function safeDestroy(instance)
-		    if not instance or removed[instance] or instance == Workspace.CurrentCamera then
-		        return false
-		    end
-
-		    if isProtectedMartialArtistEffect(instance) then
-		        return false
-		    end
-
-		    if isCoreCharacterPart(instance) then
-		        return false
-		    end
-
-		    removed[instance] = true
-		    local ok = pcall(function()
-		        instance:Destroy()
-		    end)
-
-		    if ok then
-		        counters.deleted += 1
-		    end
-		    return ok
-		end
-
-		local function disableAndDestroyVisual(instance)
-		    if isProtectedMartialArtistEffect(instance) then
-		        return false
-		    end
-		    if not VFX_CLASSES[instance.ClassName] then
-		        return false
-		    end
-
-		    -- Camera-attached lights/highlights (e.g. hit-flash, shake-linked effects)
-		    -- get disabled but NOT destroyed, so the camera script doesn't error
-		    -- reaching for a missing instance mid-animation.
-		    if isUnderCamera(instance) then
-		        pcall(function()
-		            if instance:IsA("ParticleEmitter")
-		                or instance:IsA("Trail")
-		                or instance:IsA("Beam")
-		                or instance:IsA("Smoke")
-		                or instance:IsA("Fire")
-		                or instance:IsA("Sparkles")
-		                or instance:IsA("PostEffect") then
-		                instance.Enabled = false
-		            elseif instance:IsA("Explosion") then
-		                instance.Visible = false
-		            end
-		        end)
-		        counters.disabled += 1
-		        return false
-		    end
-
-		    pcall(function()
-		        if instance:IsA("ParticleEmitter")
-		            or instance:IsA("Trail")
-		            or instance:IsA("Beam")
-		            or instance:IsA("Smoke")
-		            or instance:IsA("Fire")
-		            or instance:IsA("Sparkles")
-		            or instance:IsA("PostEffect") then
-		            instance.Enabled = false
-		        elseif instance:IsA("Explosion") then
-		            instance.Visible = false
-		        end
-		    end)
-
-		    counters.disabled += 1
-		    return safeDestroy(instance)
-		end
-
-		local function colorBands(part)
-		    local color = part.Color
-		    local red = color.R * 255
-		    local green = color.G * 255
-		    local blue = color.B * 255
-
-		    local greenFoliage = green > red * 1.15 and green > blue * 1.15 and green > 35
-		    local brownWood = red > 55 and green > 18 and green < 115 and blue < 80 and red > blue * 1.4
-		    local darkPlant = green >= red and green >= blue and red < 80 and green < 130 and blue < 85
-		    return greenFoliage, brownWood, darkPlant
-		end
-
-		local function looksLikeTreePart(part)
-		    if not part:IsA("BasePart") or nameHas(part, KEEP_WORDS) then
-		        return false
-		    end
-
-		    local greenFoliage, brownWood, darkPlant = colorBands(part)
-		    local size = part.Size
-		    local highAboveGround = part.Position.Y > 2
-		    local chunkyCanopy = size.X >= 4 and size.Z >= 4 and size.Y >= 2
-		    local trunkShape = size.Y >= 4 and size.X <= 5 and size.Z <= 5
-		    local branchShape = size.Y <= 2 and math.max(size.X, size.Z) >= 4
-
-		    return CONFIG.deleteTreesByShapeAndColor
-		        and highAboveGround
-		        and (((greenFoliage or darkPlant) and chunkyCanopy) or (brownWood and (trunkShape or branchShape)))
-		end
-
-		local function shouldKeepMapPart(part)
-		    if part:IsA("SpawnLocation") or nameHas(part, KEEP_WORDS) then
-		        return true
-		    end
-
-		    local size = part.Size
-		    local flatLargeSurface = size.Y <= 3 and size.X >= 18 and size.Z >= 18
-		    local lowGroundLayer = part.Position.Y <= 3 and size.X >= 8 and size.Z >= 8
-		    return flatLargeSurface or lowGroundLayer
-		end
-
-		local function setIfDifferent(instance, property, value)
-		    pcall(function()
-		        if instance[property] ~= value then
-		            instance[property] = value
-		        end
-		    end)
-		end
-
-		local function flattenMapPart(part)
-		    setIfDifferent(part, "Material", Enum.Material.SmoothPlastic)
-		    setIfDifferent(part, "Color", Color3.fromRGB(135, 135, 135))
-		    setIfDifferent(part, "Reflectance", 0)
-		    setIfDifferent(part, "CastShadow", false)
-		    counters.flattened += 1
-		end
-
-		local function stripMeshWeight(instance)
-		    if not CONFIG.deleteTexturesAndMeshes then
-		        return
-		    end
-		    if isUnderCamera(instance) then
-		        return
-		    end
-
-		    if instance:IsA("SpecialMesh") then
-		        setIfDifferent(instance, "TextureId", "")
-		        setIfDifferent(instance, "VertexColor", Vector3.new(1, 1, 1))
-		        counters.disabled += 1
-		    elseif instance:IsA("MeshPart") then
-		        setIfDifferent(instance, "TextureID", "")
-		        setIfDifferent(instance, "RenderFidelity", Enum.RenderFidelity.Performance)
-		        setIfDifferent(instance, "Material", Enum.Material.SmoothPlastic)
-		        setIfDifferent(instance, "Color", Color3.fromRGB(135, 135, 135))
-		        setIfDifferent(instance, "CastShadow", false)
-		        counters.flattened += 1
-		    end
-		end
-
-		local CHARACTER_EFFECT_WORDS = {
-		    "effect", "effects", "vfx", "fx", "particle", "particles", "trail", "beam",
-		    "aura", "spark", "shockwave", "slash", "impact", "explosion", "afterimage",
-		    "wind", "smoke", "dust", "debris", "rubble", "flash", "glow", "ring",
-		    "burst", "energy", "hitfx", "skillfx",
-		}
-
-		local function looksLikeCharacterEffect(item)
-		    if VFX_CLASSES[item.ClassName] then
-		        return true
-		    end
-
-		    if not (item:IsA("BasePart") or item:IsA("Model") or item:IsA("Folder")) then
-		        return false
-		    end
-
-		    local lowered = string.lower(item.Name)
-		    for _, word in ipairs(CHARACTER_EFFECT_WORDS) do
-		        if string.find(lowered, word, 1, true) then
-		            return true
-		        end
-		    end
-		    return false
-		end
-
-		local function cleanCharacterItem(item)
-		    -- Keep the local Martial Artist ("Purple") visually untouched.
-		    if isProtectedMartialArtistEffect(item) then
-		        return
-		    end
-
-		    -- Never damage a character rig. Only strip visuals/effect containers.
-		    if isCoreCharacterPart(item) then
-		        if item:IsA("BasePart") then
-		            setIfDifferent(item, "CastShadow", false)
-		        end
-		        return
-		    end
-
-		    if VFX_CLASSES[item.ClassName] then
-		        disableAndDestroyVisual(item)
-		        return
-		    end
-
-		    if looksLikeCharacterEffect(item) then
-		        safeDestroy(item)
-		        return
-		    end
-
-		    if item:IsA("BasePart") then
-		        setIfDifferent(item, "CastShadow", false)
-		    end
-		end
-
-		local function cleanLighting()
-		    setIfDifferent(Lighting, "GlobalShadows", false)
-		    setIfDifferent(Lighting, "EnvironmentDiffuseScale", 0)
-		    setIfDifferent(Lighting, "EnvironmentSpecularScale", 0)
-		    setIfDifferent(Lighting, "Brightness", 1)
-		    setIfDifferent(Lighting, "ClockTime", 14)
-		    setIfDifferent(Lighting, "FogStart", 100000)
-		    setIfDifferent(Lighting, "FogEnd", 100000)
-		    setIfDifferent(Lighting, "Ambient", Color3.fromRGB(180, 180, 180))
-		    setIfDifferent(Lighting, "OutdoorAmbient", Color3.fromRGB(180, 180, 180))
-
-		    for _, child in ipairs(Lighting:GetChildren()) do
-		        if child:IsA("Sky") or child:IsA("Atmosphere") or child:IsA("Clouds") then
-		            safeDestroy(child)
-		        else
-		            disableAndDestroyVisual(child)
-		        end
-		    end
-		end
-
-		local function cleanTerrain()
-		    if not Terrain then
-		        return
-		    end
-
-		    setIfDifferent(Terrain, "Decoration", false)
-		    setIfDifferent(Terrain, "WaterReflectance", 0)
-		    setIfDifferent(Terrain, "WaterTransparency", 1)
-		    setIfDifferent(Terrain, "WaterWaveSize", 0)
-		    setIfDifferent(Terrain, "WaterWaveSpeed", 0)
-		end
-
-		local function shouldDeleteContainer(instance)
-		    if isCharacterModel(instance) then
-		        return false
-		    end
-
-		    if instance == Workspace or instance == Workspace.CurrentCamera then
-		        return false
-		    end
-
-		    if isUnderCamera(instance) then
-		        return false
-		    end
-
-		    if instance:FindFirstAncestorWhichIsA("Tool") then
-		        return false
-		    end
-
-		    if isProtectedMartialArtistEffect(instance) then
-		        return false
-		    end
-
-		    return CONFIG.deleteMapDecor and nameHas(instance, NAME_KILL_WORDS)
-		end
-
-		local function cleanInstance(instance)
-		    if not instance or removed[instance] or processed[instance] or instance.Parent == nil then
-		        return
-		    end
-
-		    -- Only the local Martial Artist is fully exempt from visual cleanup.
-		    if isProtectedMartialArtistEffect(instance) then
-		        return
-		    end
-
-		    processed[instance] = true
-		    counters.processed += 1
-
-		    -- Preserve local Martial Artist-owned UI/skill objects when ownership
-		    -- metadata makes them identifiable outside the character model.
-		    if isStreakOrSkillRelated(instance) and isProtectedMartialArtistEffect(instance) then
-		        return
-		    end
-
-		    if isUnderCamera(instance) then
-		        -- Only disable visuals here; never destroy or restyle camera-owned
-		        -- instances, since scripts often assume they persist for the whole
-		        -- animation/shake lifecycle.
-		        disableAndDestroyVisual(instance)
-		        return
-		    end
-
-		    local _, character = characterOwner(instance)
-		    if character then
-		        cleanCharacterItem(instance)
-		        return
-		    end
-
-		    if disableAndDestroyVisual(instance) then
-		        return
-		    end
-
-		    if shouldDeleteContainer(instance) then
-		        safeDestroy(instance)
-		        return
-		    end
-
-		    stripMeshWeight(instance)
-
-		    if instance:IsA("BasePart") then
-		        if looksLikeTreePart(instance) then
-		            safeDestroy(instance)
-		            return
-		        end
-
-		        if CONFIG.deleteMapDecor and nameHas(instance, NAME_KILL_WORDS) then
-		            safeDestroy(instance)
-		            return
-		        end
-
-		        if CONFIG.flattenRemainingMap then
-		            if shouldKeepMapPart(instance) then
-		                flattenMapPart(instance)
-		            else
-		                local size = instance.Size
-		                local smallOrVerticalProp = size.Y > 3 or math.max(size.X, size.Z) < 6
-		                if smallOrVerticalProp and not instance.CanCollide then
-		                    safeDestroy(instance)
-		                else
-		                    flattenMapPart(instance)
-		                end
-		            end
-		        end
-		    end
-		end
-
-		local function enqueue(instance)
-		    if not controller.running or not instance or queued[instance] or processed[instance] then
-		        return
-		    end
-		    if isProtectedMartialArtistEffect(instance) then
-		        return
-		    end
-
-		    queued[instance] = true
-		    queueTail += 1
-		    queue[queueTail] = instance
-		end
-
-		local function enqueueTree(root)
-		    if not root then
-		        return
-		    end
-
-		    enqueue(root)
-		end
-
-		local function freeZoom()
-		    pcall(function()
-		        LocalPlayer.CameraMaxZoomDistance = 400
-		        LocalPlayer.CameraMinZoomDistance = 0.5
-		    end)
-		end
-
-		freeZoom()
-		connect(RunService.Heartbeat, freeZoom)
-
-		cleanLighting()
-		cleanTerrain()
-
-		-- Seed only the top level. Children are discovered gradually by the frame queue.
-		for _, instance in ipairs(Workspace:GetChildren()) do
-		    -- Skip queuing the camera tree entirely; it's handled passively via the
-		    -- isUnderCamera guard so nothing there is ever destroyed.
-		    if instance ~= Workspace.CurrentCamera then
-		        enqueue(instance)
-		    end
-		end
-
-		connect(Workspace.DescendantAdded, enqueue)
-		connect(Lighting.DescendantAdded, function(instance)
-		    if instance:IsA("Sky") or instance:IsA("Atmosphere") or instance:IsA("Clouds") then
-		        safeDestroy(instance)
-		    else
-		        disableAndDestroyVisual(instance)
-		    end
-		end)
-
-		connect(Players.PlayerAdded, function(player)
-		    connect(player.CharacterAdded, enqueueTree)
-		end)
-
-		for _, player in ipairs(Players:GetPlayers()) do
-		    if player.Character then
-		        enqueueTree(player.Character)
-		    end
-		    connect(player.CharacterAdded, function(character)
-		        enqueueTree(character)
-		    end)
-		end
-
-		connect(RunService.Heartbeat, function()
-		    if not controller.running then
-		        return
-		    end
-
-		    local startedAt = os.clock()
-		    local count = 0
-
-		    while queueHead <= queueTail and count < CONFIG.batchSize do
-		        local instance = queue[queueHead]
-		        queue[queueHead] = nil
-		        queueHead += 1
-		        queued[instance] = nil
-
-		        if instance and instance.Parent ~= nil then
-		            for _, child in ipairs(instance:GetChildren()) do
-		                enqueue(child)
-		            end
-		            cleanInstance(instance)
-		        end
-		        count += 1
-
-		        if os.clock() - startedAt >= CONFIG.frameBudgetSeconds then
-		            break
-		        end
-		    end
-
-		    if queueHead > queueTail then
-		        queueHead = 1
-		        queueTail = 0
-		    end
-		end)
-
-		print("[TSB Ultra Baseplate Optimizer] smooth mode active; non-Martial VFX stripped, local Purple preserved")
-	end)
-	if not optimizerOk then
-		warn("[TSB Optimizer] Failed to start:", optimizerErr)
-	end
-end)
--- ======================= End Optimizer =======================
 
 local countries = {
 	"France",
@@ -1149,6 +80,8 @@ local function configureLabel(label, truncate)
 end
 
 local farmEnabled = true
+local startVisualOptimizer
+local stopVisualOptimizer
 local unusedFlag = false
 local httpService = game:GetService("HttpService")
 
@@ -1498,7 +431,7 @@ local function openDropdown()
 	dropdownList.Size = UDim2.new(1, 0, 0, clampedRows * rowHeight)
 end
 
-dropdownButton.Activated:Connect(function()
+dropdownButton.MouseButton1Click:Connect(function()
 	if dropdownOpen then
 		closeDropdown()
 	else
@@ -1522,7 +455,7 @@ for index, country in ipairs(countries) do
 	countryButton.ZIndex = 11
 	configureLabel(countryButton, true)
 	countryButton.Parent = dropdownList
-	countryButton.Activated:Connect(function()
+	countryButton.MouseButton1Click:Connect(function()
 		farmSettings.country = country
 		countryLabel.Text = country
 		closeDropdown()
@@ -1642,7 +575,13 @@ local function setFarmState(enabled)
 	if enabled then
 		farmToggleButton.Text = "Stop Farm"
 		createTween(farmToggleButton, { BackgroundColor3 = colors.FarmOff }, 0.18):Play()
+		if startVisualOptimizer then
+			startVisualOptimizer()
+		end
 	else
+		if stopVisualOptimizer then
+			stopVisualOptimizer()
+		end
 		pcall(function()
 			localPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(-42, 1855, 25227)
 		end)
@@ -1652,10 +591,9 @@ local function setFarmState(enabled)
 
 end
 
-farmToggleButton.Activated:Connect(function()
+farmToggleButton.MouseButton1Click:Connect(function()
 	setFarmState(not farmEnabled)
 end)
-setFarmState(farmEnabled)
 local hopServerRow = Instance.new("Frame")
 hopServerRow.Name = "HopServerRow"
 hopServerRow.BackgroundTransparency = 1
@@ -1703,7 +641,7 @@ local function setRender(enabled)
 
 end
 
-renderToggleButton.Activated:Connect(function() end)
+renderToggleButton.MouseButton1Click:Connect(function() end)
 setRender(true)
 local creditsRow = Instance.new("Frame")
 creditsRow.Name = "CreditsRow"
@@ -2052,54 +990,10 @@ local teleportService = game:GetService("TeleportService")
 local playersService2 = game:GetService("Players")
 local runService = game:GetService("RunService")
 local userInputService = game:GetService("UserInputService")
-local isTouchDevice = userInputService.TouchEnabled
 local replicatedStorage = game:GetService("ReplicatedStorage")
 local virtualInput = game:GetService("VirtualInputManager")
 local localPlayer2 = playersService2.LocalPlayer
 local leaderstats = localPlayer2:FindFirstChild("leaderstats") or localPlayer2
-
--- Delta/mobile fix: virtual keyboard input can make Roblox expose a PC mouse cursor.
--- Keep it force-hidden while the farm is enabled, then restore normal behavior when stopped.
-local originalMouseIconEnabled = true
-pcall(function()
-	originalMouseIconEnabled = userInputService.MouseIconEnabled
-end)
-
-local function applyMobileCursorState()
-	if not isTouchDevice then
-		return
-	end
-
-	if farmEnabled then
-		pcall(function()
-			userInputService.MouseIconEnabled = false
-		end)
-		pcall(function()
-			userInputService.OverrideMouseIconBehavior = Enum.OverrideMouseIconBehavior.ForceHide
-		end)
-	else
-		pcall(function()
-			userInputService.MouseIconEnabled = originalMouseIconEnabled
-		end)
-		pcall(function()
-			userInputService.OverrideMouseIconBehavior = Enum.OverrideMouseIconBehavior.None
-		end)
-	end
-end
-
-if isTouchDevice then
-	pcall(function()
-		runService:UnbindFromRenderStep("__ZYKE_MOBILE_CURSOR_GUARD")
-	end)
-	pcall(function()
-		runService:BindToRenderStep(
-			"__ZYKE_MOBILE_CURSOR_GUARD",
-			Enum.RenderPriority.Last.Value + 100,
-			applyMobileCursorState
-		)
-	end)
-	applyMobileCursorState()
-end
 
 local function sendWebhook()
 	local userName = localPlayer2 and localPlayer2.Name or "Unknown"
@@ -2141,7 +1035,7 @@ local function sendWebhook()
 	return requestOk, requestError
 end
 
-testWebhookButton.Activated:Connect(sendWebhook)
+testWebhookButton.MouseButton1Click:Connect(sendWebhook)
 workspace.FallenPartsDestroyHeight = 0 / 0
 local fallenPartsWatcher = workspace
 	:GetPropertyChangedSignal(("Fa" .. "llenP" .. "artsDestroyHe" .. "ight"))
@@ -2486,7 +1380,7 @@ local invisHeartbeat = runService.Heartbeat:Connect(function()
 		else
 			if
 				currentCamera
-				and (isTouchDevice or userInputService.MouseBehavior == Enum.MouseBehavior.LockCenter)
+				and userInputService.MouseBehavior == Enum.MouseBehavior.LockCenter
 				and not desyncActive
 				and not (invisActive and not desyncActive)
 			then
@@ -2596,231 +1490,528 @@ local lightingService = game:GetService("Lighting")
 local workspaceService = game:GetService("Workspace")
 local terrain = Workspace:FindFirstChildOfClass("Terrain")
 
-local function safeConnect(signal, handler)
-	pcall(function()
-		signal:Connect(handler)
-	end)
-end
+local visualOptimizerController
 
-local optimizers = {}
+startVisualOptimizer = function()
+	if visualOptimizerController and visualOptimizerController.running then
+		return
+	end
 
-local legacyVfxClasses = {
-	ParticleEmitter = true,
-	Trail = true,
-	Beam = true,
-	Smoke = true,
-	Fire = true,
-	Sparkles = true,
-	Highlight = true,
-	PointLight = true,
-	SpotLight = true,
-	SurfaceLight = true,
-	Explosion = true,
-	Decal = true,
-	Texture = true,
-	SurfaceAppearance = true,
-}
+	local oldController = getgenv().__TSB_ULTRA_OPTIMIZER
+	if type(oldController) == "table" and type(oldController.stop) == "function" then
+		pcall(oldController.stop)
+	end
 
-local function legacyKeepLocalMartialArtist(instance)
-	local character = localPlayer2.Character
-	if not character or character:GetAttribute("Character") ~= "Purple" then
+	local controller = {
+		running = true,
+		connections = {},
+	}
+	visualOptimizerController = controller
+	getgenv().__TSB_ULTRA_OPTIMIZER = controller
+
+	local CONFIG = {
+		deleteCharacterVfx = true,
+		deleteTreesByShapeAndColor = true,
+		deleteMapDecor = true,
+		deleteTexturesAndMeshes = true,
+		flattenRemainingMap = true,
+		batchSize = 70,
+		frameBudgetSeconds = 0.0015,
+	}
+	local removed = setmetatable({}, { __mode = "k" })
+	local processed = setmetatable({}, { __mode = "k" })
+	local queued = setmetatable({}, { __mode = "k" })
+	local queue = {}
+	local queueHead = 1
+	local queueTail = 0
+	local counters = { deleted = 0, flattened = 0, disabled = 0, processed = 0 }
+
+	local PROTECTED_CLASSES = {
+		Attachment = true,
+		Motor6D = true,
+		Motor = true,
+		Weld = true,
+		WeldConstraint = true,
+		Bone = true,
+		Animator = true,
+		AnimationController = true,
+		Humanoid = true,
+		Camera = true,
+		BoneAttachment = true,
+	}
+	local VFX_CLASSES = {
+		ParticleEmitter = true,
+		Trail = true,
+		Beam = true,
+		Smoke = true,
+		Fire = true,
+		Sparkles = true,
+		Explosion = true,
+		Highlight = true,
+		PointLight = true,
+		SpotLight = true,
+		SurfaceLight = true,
+		Decal = true,
+		Texture = true,
+		SurfaceAppearance = true,
+		PostEffect = true,
+		BloomEffect = true,
+		BlurEffect = true,
+		ColorCorrectionEffect = true,
+		DepthOfFieldEffect = true,
+		SunRaysEffect = true,
+	}
+	local NAME_KILL_WORDS = {
+		"tree", "leaf", "leaves", "branch", "bush", "grass", "plant", "foliage",
+		"trunk", "wood", "log", "palm", "shrub", "vine", "effect", "effects",
+		"vfx", "fx", "particle", "particles", "trail", "beam", "smoke", "dust",
+		"debris", "rubble", "shockwave", "slash", "impact", "explosion", "aura",
+		"spark", "ring", "wind", "afterimage", "hitfx", "rock", "crate", "barrel",
+		"bench", "chair", "table", "lamp", "sign", "fence", "prop", "decor",
+		"decoration", "detail", "garbage", "trash",
+	}
+	local KEEP_WORDS = {
+		"baseplate", "base", "floor", "ground", "road", "street", "sidewalk", "spawn",
+		"arena", "platform", "plate", "safezone",
+	}
+	local CHARACTER_EFFECT_CONTAINER_WORDS = {
+		"effect", "effects", "vfx", "fx", "particle", "particles", "trail", "beam",
+		"aura", "afterimage", "hitfx", "shockwave", "slash", "impact", "explosion",
+		"smoke", "dust", "debris", "rubble", "spark", "ring", "wind", "skill",
+		"ult", "ultimate", "awaken", "transform", "summon",
+	}
+	local STREAK_UI_WORDS = { "streak", "killstreak", "crown" }
+
+	local function connect(signal, handler)
+		local ok, connection = pcall(function()
+			return signal:Connect(handler)
+		end)
+		if ok and connection then
+			table.insert(controller.connections, connection)
+		end
+		return connection
+	end
+
+	function controller.stop()
+		if not controller.running then
+			return
+		end
+		controller.running = false
+		for _, connection in ipairs(controller.connections) do
+			pcall(function()
+				connection:Disconnect()
+			end)
+		end
+		table.clear(controller.connections)
+		table.clear(queue)
+		if visualOptimizerController == controller then
+			visualOptimizerController = nil
+		end
+		if getgenv().__TSB_ULTRA_OPTIMIZER == controller then
+			getgenv().__TSB_ULTRA_OPTIMIZER = nil
+		end
+	end
+
+	local function nameHas(instance, words)
+		local name = string.lower(instance.Name)
+		for _, word in ipairs(words) do
+			if string.find(name, word, 1, true) then
+				return true
+			end
+		end
 		return false
 	end
-	if instance == character or instance:IsDescendantOf(character) then
-		return true
+
+	local function isLocalCharacter(instance)
+		local character = localPlayer2 and localPlayer2.Character
+		return character ~= nil and (instance == character or instance:IsDescendantOf(character))
 	end
 
-	-- Some TSB skill effects are re-parented into Workspace effect folders.
-	-- Preserve them only when they carry metadata that explicitly points back
-	-- to the local player/current character.
-	local cursor = instance
-	local depth = 0
-	while cursor and depth < 7 do
-		depth += 1
-		for _, attrName in ipairs({ "Owner", "Creator", "Player", "PlayerName" }) do
-			local value = cursor:GetAttribute(attrName)
-			if type(value) == "string" and value == localPlayer2.Name then
+	local function isUnderCamera(instance)
+		local camera = workspaceService.CurrentCamera
+		return camera ~= nil and instance:IsDescendantOf(camera)
+	end
+
+	local function characterOwner(instance)
+		local ancestor = instance.Parent
+		while ancestor do
+			if ancestor:IsA("Model") and ancestor:FindFirstChildOfClass("Humanoid") then
+				return playersService2:GetPlayerFromCharacter(ancestor), ancestor
+			end
+			ancestor = ancestor.Parent
+		end
+		return nil, nil
+	end
+
+	local function isPlayerOwned(instance)
+		for _, player in ipairs(playersService2:GetPlayers()) do
+			local character = player.Character
+			if character and instance:IsDescendantOf(character) then
+				return true
+			end
+			if instance:IsDescendantOf(player) then
 				return true
 			end
 		end
-		for _, attrName in ipairs({ "UserId", "OwnerUserId", "CreatorUserId" }) do
-			local value = cursor:GetAttribute(attrName)
-			if tonumber(value) == localPlayer2.UserId then
-				return true
-			end
+		return false
+	end
+
+	local function isStreakUi(instance)
+		if instance:IsA("BillboardGui") or instance:IsA("SurfaceGui") or instance:IsA("ScreenGui") then
+			return true
 		end
-		for _, valueName in ipairs({ "Owner", "Creator", "Player", "Character" }) do
-			local valueObject = cursor:FindFirstChild(valueName)
-			if valueObject and valueObject:IsA("ObjectValue") then
-				if valueObject.Value == localPlayer2 or valueObject.Value == character then
+		if instance:FindFirstAncestorWhichIsA("BillboardGui")
+			or instance:FindFirstAncestorWhichIsA("SurfaceGui")
+			or instance:FindFirstAncestorWhichIsA("ScreenGui") then
+			return true
+		end
+		local ancestor = instance
+		while ancestor do
+			local ancestorName = string.lower(ancestor.Name)
+			for _, word in ipairs(STREAK_UI_WORDS) do
+				if string.find(ancestorName, word, 1, true) then
 					return true
 				end
 			end
+			ancestor = ancestor.Parent
 		end
-		cursor = cursor.Parent
+		return false
 	end
-	return false
-end
 
-local function legacyStripVfx(instance)
-	if not instance or instance.Parent == nil or legacyKeepLocalMartialArtist(instance) then
-		return
+	local function isCoreCharacterPart(instance)
+		if PROTECTED_CLASSES[instance.ClassName] or isUnderCamera(instance) then
+			return true
+		end
+		if isLocalCharacter(instance) or isStreakUi(instance) then
+			return true
+		end
+		local _, character = characterOwner(instance)
+		if not character then
+			return false
+		end
+		if instance:IsA("BasePart") then
+			return instance.Name == "HumanoidRootPart"
+				or instance.Name == "Head"
+				or instance.Name == "Torso"
+				or instance.Name == "UpperTorso"
+				or instance.Name == "LowerTorso"
+				or string.find(instance.Name, "Arm", 1, true) ~= nil
+				or string.find(instance.Name, "Leg", 1, true) ~= nil
+				or string.find(instance.Name, "Hand", 1, true) ~= nil
+				or string.find(instance.Name, "Foot", 1, true) ~= nil
+		end
+		return instance:IsA("Humanoid")
+			or instance:IsA("Animator")
+			or instance:IsA("Motor6D")
+			or instance:IsA("Attachment")
 	end
-	if legacyVfxClasses[instance.ClassName] then
-		pcall(function()
-			if instance:IsA("ParticleEmitter")
-				or instance:IsA("Trail")
-				or instance:IsA("Beam")
-				or instance:IsA("Smoke")
-				or instance:IsA("Fire")
-				or instance:IsA("Sparkles") then
-				instance.Enabled = false
-			elseif instance:IsA("Explosion") then
-				instance.Visible = false
-			end
+
+	local function safeDestroy(instance)
+		if not instance or removed[instance] or instance == workspaceService.CurrentCamera then
+			return false
+		end
+		if isLocalCharacter(instance) or isCoreCharacterPart(instance) then
+			return false
+		end
+		removed[instance] = true
+		local ok = pcall(function()
 			instance:Destroy()
 		end)
+		if ok then
+			counters.deleted += 1
+		end
+		return ok
 	end
-end
 
-optimizers[1] = function()
-	-- Remove existing character VFX from every character except the local
-	-- Martial Artist ("Purple"), then keep stripping newly-created VFX.
-	for _, player in ipairs(playersService2:GetPlayers()) do
-		local character = player.Character
-		if character and not legacyKeepLocalMartialArtist(character) then
-			for _, child in ipairs(character:GetDescendants()) do
-				legacyStripVfx(child)
+	local function disableAndDestroyVisual(instance)
+		if isLocalCharacter(instance) or isStreakUi(instance) or not VFX_CLASSES[instance.ClassName] then
+			return false
+		end
+		if isUnderCamera(instance) then
+			pcall(function()
+				if instance:IsA("Explosion") then
+					instance.Visible = false
+				else
+					instance.Enabled = false
+				end
+			end)
+			counters.disabled += 1
+			return false
+		end
+		pcall(function()
+			if instance:IsA("Explosion") then
+				instance.Visible = false
+			else
+				instance.Enabled = false
+			end
+		end)
+		counters.disabled += 1
+		return safeDestroy(instance)
+	end
+
+	local function setIfDifferent(instance, property, value)
+		pcall(function()
+			if instance[property] ~= value then
+				instance[property] = value
+			end
+		end)
+	end
+
+	local function colorBands(part)
+		local color = part.Color
+		local red = color.R * 255
+		local green = color.G * 255
+		local blue = color.B * 255
+		local greenFoliage = green > red * 1.15 and green > blue * 1.15 and green > 35
+		local brownWood = red > 55 and green > 18 and green < 115 and blue < 80 and red > blue * 1.4
+		local darkPlant = green >= red and green >= blue and red < 80 and green < 130 and blue < 85
+		return greenFoliage, brownWood, darkPlant
+	end
+
+	local function looksLikeTreePart(part)
+		if not part:IsA("BasePart") or nameHas(part, KEEP_WORDS) then
+			return false
+		end
+		local greenFoliage, brownWood, darkPlant = colorBands(part)
+		local size = part.Size
+		local highAboveGround = part.Position.Y > 2
+		local chunkyCanopy = size.X >= 4 and size.Z >= 4 and size.Y >= 2
+		local trunkShape = size.Y >= 4 and size.X <= 5 and size.Z <= 5
+		local branchShape = size.Y <= 2 and math.max(size.X, size.Z) >= 4
+		return CONFIG.deleteTreesByShapeAndColor
+			and highAboveGround
+			and (((greenFoliage or darkPlant) and chunkyCanopy) or (brownWood and (trunkShape or branchShape)))
+	end
+
+	local function shouldKeepMapPart(part)
+		if part:IsA("SpawnLocation") or nameHas(part, KEEP_WORDS) then
+			return true
+		end
+		local size = part.Size
+		return (size.Y <= 3 and size.X >= 18 and size.Z >= 18)
+			or (part.Position.Y <= 3 and size.X >= 8 and size.Z >= 8)
+	end
+
+	local function flattenMapPart(part)
+		setIfDifferent(part, "Material", Enum.Material.SmoothPlastic)
+		setIfDifferent(part, "Color", Color3.fromRGB(135, 135, 135))
+		setIfDifferent(part, "Reflectance", 0)
+		setIfDifferent(part, "CastShadow", false)
+		counters.flattened += 1
+	end
+
+	local function stripMeshWeight(instance)
+		if not CONFIG.deleteTexturesAndMeshes or isUnderCamera(instance) then
+			return
+		end
+		if instance:IsA("SpecialMesh") then
+			setIfDifferent(instance, "TextureId", "")
+			setIfDifferent(instance, "VertexColor", Vector3.new(1, 1, 1))
+			counters.disabled += 1
+		elseif instance:IsA("MeshPart") then
+			setIfDifferent(instance, "TextureID", "")
+			setIfDifferent(instance, "RenderFidelity", Enum.RenderFidelity.Performance)
+			setIfDifferent(instance, "Material", Enum.Material.SmoothPlastic)
+			setIfDifferent(instance, "Color", Color3.fromRGB(135, 135, 135))
+			setIfDifferent(instance, "CastShadow", false)
+			counters.flattened += 1
+		end
+	end
+
+	local function cleanLighting()
+		setIfDifferent(lightingService, "GlobalShadows", false)
+		setIfDifferent(lightingService, "EnvironmentDiffuseScale", 0)
+		setIfDifferent(lightingService, "EnvironmentSpecularScale", 0)
+		setIfDifferent(lightingService, "Brightness", 1)
+		setIfDifferent(lightingService, "ClockTime", 14)
+		setIfDifferent(lightingService, "FogStart", 100000)
+		setIfDifferent(lightingService, "FogEnd", 100000)
+		setIfDifferent(lightingService, "Ambient", Color3.fromRGB(180, 180, 180))
+		setIfDifferent(lightingService, "OutdoorAmbient", Color3.fromRGB(180, 180, 180))
+		for _, child in ipairs(lightingService:GetChildren()) do
+			if child:IsA("Sky") or child:IsA("Atmosphere") or child:IsA("Clouds") then
+				safeDestroy(child)
+			else
+				disableAndDestroyVisual(child)
 			end
 		end
-		safeConnect(player.CharacterAdded, function(newCharacter)
-			if legacyKeepLocalMartialArtist(newCharacter) then
-				return
-			end
-			for _, child in ipairs(newCharacter:GetDescendants()) do
-				legacyStripVfx(child)
-			end
-			safeConnect(newCharacter.DescendantAdded, legacyStripVfx)
-		end)
+	end
+
+	local function cleanTerrain()
+		if not terrain then
+			return
+		end
+		setIfDifferent(terrain, "Decoration", false)
+		setIfDifferent(terrain, "WaterReflectance", 0)
+		setIfDifferent(terrain, "WaterTransparency", 1)
+		setIfDifferent(terrain, "WaterWaveSize", 0)
+		setIfDifferent(terrain, "WaterWaveSpeed", 0)
+	end
+
+	local function shouldDeleteContainer(instance)
+		if instance:IsA("Model") and instance:FindFirstChildOfClass("Humanoid") then
+			return false
+		end
+		if instance == workspaceService or instance == workspaceService.CurrentCamera
+			or isUnderCamera(instance) or isPlayerOwned(instance) or isStreakUi(instance) then
+			return false
+		end
+		return CONFIG.deleteMapDecor and nameHas(instance, NAME_KILL_WORDS)
+	end
+
+	local function cleanInstance(instance)
+		if not instance or removed[instance] or processed[instance] or instance.Parent == nil then
+			return
+		end
+		if isLocalCharacter(instance) then
+			return
+		end
+		processed[instance] = true
+		counters.processed += 1
+		if isStreakUi(instance) then
+			return
+		end
+		if isUnderCamera(instance) then
+			disableAndDestroyVisual(instance)
+			return
+		end
+
+		local _, character = characterOwner(instance)
 		if character then
-			safeConnect(character.DescendantAdded, legacyStripVfx)
-		end
-	end
-	safeConnect(playersService2.PlayerAdded, function(player)
-		safeConnect(player.CharacterAdded, function(character)
-			if legacyKeepLocalMartialArtist(character) then
+			if CONFIG.deleteCharacterVfx
+				and (instance:IsA("Folder") or instance:IsA("Model"))
+				and nameHas(instance, CHARACTER_EFFECT_CONTAINER_WORDS) then
+				safeDestroy(instance)
 				return
 			end
-			for _, child in ipairs(character:GetDescendants()) do
-				legacyStripVfx(child)
+			if CONFIG.deleteCharacterVfx and VFX_CLASSES[instance.ClassName] then
+				disableAndDestroyVisual(instance)
+				return
 			end
-			safeConnect(character.DescendantAdded, legacyStripVfx)
+			if instance:IsA("BasePart") then
+				setIfDifferent(instance, "CastShadow", false)
+			end
+			return
+		end
+
+		if disableAndDestroyVisual(instance) then
+			return
+		end
+		if shouldDeleteContainer(instance) then
+			safeDestroy(instance)
+			return
+		end
+		stripMeshWeight(instance)
+		if instance:IsA("BasePart") then
+			if looksLikeTreePart(instance) then
+				safeDestroy(instance)
+				return
+			end
+			if CONFIG.deleteMapDecor and nameHas(instance, NAME_KILL_WORDS) then
+				safeDestroy(instance)
+				return
+			end
+			if CONFIG.flattenRemainingMap then
+				if shouldKeepMapPart(instance) then
+					flattenMapPart(instance)
+				else
+					local size = instance.Size
+					local smallOrVerticalProp = size.Y > 3 or math.max(size.X, size.Z) < 6
+					if smallOrVerticalProp and not instance.CanCollide then
+						safeDestroy(instance)
+					else
+						flattenMapPart(instance)
+					end
+				end
+			end
+		end
+	end
+
+	local function enqueue(instance)
+		if not controller.running or not instance or queued[instance] or processed[instance] then
+			return
+		end
+		if isLocalCharacter(instance) then
+			return
+		end
+		queued[instance] = true
+		queueTail += 1
+		queue[queueTail] = instance
+	end
+
+	local function freeZoom()
+		pcall(function()
+			localPlayer2.CameraMaxZoomDistance = 400
+			localPlayer2.CameraMinZoomDistance = 0.5
 		end)
-	end)
-end
+	end
 
-optimizers[2] = function()
-	local skyboxIds = {
-		Bk = 92959017845968,
-		Ft = 129304841254693,
-		Lf = 129249062260004,
-		Rt = 117319232583147,
-		Up = 121193772599100,
-		Dn = 115022734343595,
-	}
-	for index2, skyInstance in ipairs(lightingService:GetChildren()) do
-		if skyInstance:IsA("Sky") then
-			skyInstance:Destroy()
+	freeZoom()
+	connect(runService.Heartbeat, freeZoom)
+	cleanLighting()
+	cleanTerrain()
+	for _, instance in ipairs(workspaceService:GetChildren()) do
+		if instance ~= workspaceService.CurrentCamera then
+			enqueue(instance)
 		end
 	end
-	local sky = Instance.new("Sky")
-	for key, assetId in pairs(skyboxIds) do
-		sky["Skybox" .. key] = "rbxassetid://" .. assetId
-	end
-	sky.Parent = lightingService
-end
-
-optimizers[3] = function()
-	lightingService.ClockTime = 12
-	lightingService.GlobalShadows = false
-	lightingService.Brightness = 0.8
-	lightingService.ExposureCompensation = -0.2
-	lightingService.FogStart, lightingService.FogEnd = 9e9, 9e9
-	for index2, child in ipairs(lightingService:GetChildren()) do
-		if child:IsA("PostEffect") or child:IsA("SunRaysEffect") then
-			child.Enabled = false
-		end
-	end
-
-end
-
-optimizers[4] = function()
-	-- Catch free-standing TSB visual effects too. This intentionally does not
-	-- preserve Hero Hunter or other classes; only the local Purple character
-	-- is exempt when the effect is directly owned by that character.
-	for _, descendant in ipairs(workspaceService:GetDescendants()) do
-		legacyStripVfx(descendant)
-	end
-	safeConnect(workspaceService.DescendantAdded, legacyStripVfx)
-end
-
-optimizers[5] = function()
-	if not terrain then
-		return
-	end
-	for index2, clouds in ipairs(terrain:GetChildren()) do
-		if clouds:IsA("Clouds") then
-			clouds.Enabled = false
-		end
-	end
-	safeConnect(terrain.ChildAdded, function(newChild)
-		if newChild:IsA("Clouds") then
-			newChild.Enabled = false
+	connect(workspaceService.DescendantAdded, enqueue)
+	connect(lightingService.DescendantAdded, function(instance)
+		if instance:IsA("Sky") or instance:IsA("Atmosphere") or instance:IsA("Clouds") then
+			safeDestroy(instance)
+		else
+			disableAndDestroyVisual(instance)
 		end
 	end)
-end
-
-optimizers[6] = function()
-	local function clearSkyTextures()
-		local sky = lightingService:FindFirstChildOfClass("Sky")
-		if sky then
-			sky.SunAngularSize = 0
-			sky.SunTextureId = ""
-			sky.MoonAngularSize = 0
-			sky.MoonTextureId = ""
+	connect(playersService2.PlayerAdded, function(player)
+		connect(player.CharacterAdded, enqueue)
+	end)
+	for _, player in ipairs(playersService2:GetPlayers()) do
+		if player.Character and player ~= localPlayer2 then
+			enqueue(player.Character)
 		end
+		connect(player.CharacterAdded, function(character)
+			if player ~= localPlayer2 then
+				enqueue(character)
+			end
+		end)
 	end
-	clearSkyTextures()
-	local atmosphere = lightingService:FindFirstChildOfClass("Atmosphere")
-	if atmosphere then
-		atmosphere.Density = 0
-		atmosphere.Haze = 0
-		atmosphere.Glare = 0
-	end
-	safeConnect(lightingService.ChildAdded, function(newChild)
-		if newChild:IsA("Sky") then
-			task.wait()
-			clearSkyTextures()
-		elseif newChild:IsA("Atmosphere") then
-			newChild.Density = 0
-			newChild.Haze = 0
-			newChild.Glare = 0
+	connect(runService.Heartbeat, function()
+		if not controller.running then
+			return
+		end
+		local startedAt = os.clock()
+		local count = 0
+		while queueHead <= queueTail and count < CONFIG.batchSize do
+			local instance = queue[queueHead]
+			queue[queueHead] = nil
+			queueHead += 1
+			queued[instance] = nil
+			if instance and instance.Parent ~= nil then
+				for _, child in ipairs(instance:GetChildren()) do
+					enqueue(child)
+				end
+				cleanInstance(instance)
+			end
+			count += 1
+			if os.clock() - startedAt >= CONFIG.frameBudgetSeconds then
+				break
+			end
+		end
+		if queueHead > queueTail then
+			queueHead = 1
+			queueTail = 0
 		end
 	end)
 end
 
-task.spawn(function()
-	local optimizerQueue = { 1, 2, 3, 4, 5, 6 }
-	while #optimizerQueue > 0 do
-		local randomIndex = math.random(#optimizerQueue)
-		pcall(optimizers[optimizerQueue[randomIndex]])
-		table.remove(optimizerQueue, randomIndex)
+stopVisualOptimizer = function()
+	if visualOptimizerController then
+		visualOptimizerController.stop()
 	end
+end
 
-end)
-pcall(function()
-	farmSettings().Rendering.QualityLevel = Enum.QualityLevel.Level01
-end)
+setFarmState(farmEnabled)
 local desyncActive = false
 
 local function getCharacter(input)
@@ -3742,7 +2933,7 @@ function hopServer()
 	end)
 end
 
-hopServerButton.Activated:Connect(function()
+hopServerButton.MouseButton1Click:Connect(function()
 	warn("[Galaxy] Hop server manually...")
 	forceHop = true
 	hopServer()
@@ -5207,7 +4398,7 @@ local function detachSelfPhysics()
 
 end
 
-function __ZYKE_setupCombatLoop()
+local function setupCombatLoop()
 	local unusedCount = 6
 	local dashCooldown = 0
 	local lastM1 = 0
@@ -5221,6 +4412,7 @@ function __ZYKE_setupCombatLoop()
 	local ULT_INTERVAL = 0.04
 	local leftClickGoal = {
 		Goal = "LeftClick",
+		MousePos = CFrame.new(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
 	}
 	local releaseGoal = {
 		Goal = "LeftClickRelease",
@@ -5228,11 +4420,13 @@ function __ZYKE_setupCombatLoop()
 	local mobileClickGoal = {
 		Mobile = true,
 		Goal = "LeftClick",
+		MousePos = CFrame.new(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
 	}
 	local dashGoal = {
 		Dash = Enum.KeyCode.W,
 		Key = Enum.KeyCode.Q,
 		Goal = "KeyPress",
+		MousePos = CFrame.new(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
 	}
 	local backDashGoal = {
 		Dash = Enum.KeyCode.S,
@@ -5242,6 +4436,7 @@ function __ZYKE_setupCombatLoop()
 	local spaceGoal = {
 		Goal = "KeyPress",
 		Key = Enum.KeyCode.Space,
+		MousePos = CFrame.new(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
 	}
 	local skillKeys = { Enum.KeyCode.One, Enum.KeyCode.Two, Enum.KeyCode.Three, Enum.KeyCode.Four }
 	local attackAnimIds = {
@@ -5278,26 +4473,14 @@ function __ZYKE_setupCombatLoop()
 		isAttacking = false
 		return false
 	end
-	local function fireGoal(communicate, goal)
-		pcall(communicate.FireServer, communicate, goal)
-	end
 	local function tapKey(keyCode)
-		if isTouchDevice then
-			local character = localPlayer2.Character
-			local communicate = character and character:FindFirstChild("Communicate")
-			if communicate then
-				fireGoal(communicate, {
-					Goal = "KeyPress",
-					Key = keyCode,
-				})
-			end
-			return
-		end
-
 		virtualInput:SendKeyEvent(true, keyCode, false, game)
 		task.delay(0.01, function()
 			virtualInput:SendKeyEvent(false, keyCode, false, game)
 		end)
+	end
+	local function fireGoal(communicate, goal)
+		pcall(communicate.FireServer, communicate, goal)
 	end
 	local function getHotbarSlot(slotName)
 		local playerGui = localPlayer2:FindFirstChild("PlayerGui")
@@ -5408,7 +4591,7 @@ function __ZYKE_setupCombatLoop()
 			else
 				if now - lastM1 >= M1_INTERVAL then
 					lastM1 = now
-					if isTouchDevice or myChar:GetAttribute("mobile") then
+					if myChar:GetAttribute("mobile") then
 						fireGoal(communicate, mobileClickGoal)
 					else
 						fireGoal(communicate, leftClickGoal)
@@ -5426,7 +4609,7 @@ function __ZYKE_setupCombatLoop()
 	end)
 end
 
-function __ZYKE_offsetCFrameBehind(targetRoot, heightOffset, forwardOffset)
+local function offsetCFrameBehind(targetRoot, heightOffset, forwardOffset)
 	local targetCFrame2 = targetRoot.CFrame
 	local rx, ry, rz = targetCFrame2:ToEulerAnglesYXZ()
 	local yawCFrame = CFrame.fromEulerAnglesYXZ(0, ry, 0)
@@ -5435,7 +4618,7 @@ function __ZYKE_offsetCFrameBehind(targetRoot, heightOffset, forwardOffset)
 	return CFrame.new(offsetPos) * yawCFrame
 end
 
-function __ZYKE_setupAimLoop()
+local function setupAimLoop()
 	local heartbeatConn = nil
 	local unusedHolder2 = nil
 	local immortalWait = nil
@@ -5469,20 +4652,9 @@ function __ZYKE_setupAimLoop()
 			ultKeyReady = false
 			task.spawn(function()
 				task.wait(0.5)
-				if isTouchDevice then
-					local latestChar = localPlayer2.Character
-					local communicate = latestChar and latestChar:FindFirstChild("Communicate")
-					if communicate then
-						pcall(communicate.FireServer, communicate, {
-							Goal = "KeyPress",
-							Key = Enum.KeyCode.G,
-						})
-					end
-				else
-					virtualInput:SendKeyEvent(true, Enum.KeyCode.G, false, game)
-					task.wait(0.001)
-					virtualInput:SendKeyEvent(false, Enum.KeyCode.G, false, game)
-				end
+				virtualInput:SendKeyEvent(true, Enum.KeyCode.G, false, game)
+				task.wait(0.001)
+				virtualInput:SendKeyEvent(false, Enum.KeyCode.G, false, game)
 				gKeyBusy = false
 			end)
 		end
@@ -5573,10 +4745,10 @@ function __ZYKE_setupAimLoop()
 		myRoot.AssemblyLinearVelocity = Vector3.zero
 		myRoot.AssemblyAngularVelocity = Vector3.zero
 		if not getgenv().desync then
-			myRoot.CFrame = __ZYKE_offsetCFrameBehind(targetRoot, 0, 5)
+			myRoot.CFrame = offsetCFrameBehind(targetRoot, 0, 5)
 			targetCFrame = myRoot.CFrame
 		else
-			targetCFrame = __ZYKE_offsetCFrameBehind(targetRoot, 0, 5)
+			targetCFrame = offsetCFrameBehind(targetRoot, 0, 5)
 		end
 		if sethiddenproperty then
 			sethiddenproperty(myRoot, "PhysicsRepRootPart", targetRoot)
@@ -5584,18 +4756,11 @@ function __ZYKE_setupAimLoop()
 	end)
 end
 
-function __ZYKE_setupAntiAfk()
+local function setupAntiAfk()
+	local virtualUser = game:GetService("VirtualUser")
 	localPlayer2.Idled:Connect(function()
-		-- Never use mouse buttons for anti-AFK. A keyboard pulse is used only when
-		-- Roblox actually fires Idled; the mobile cursor guard keeps the arrow hidden.
-		pcall(function()
-			virtualInput:SendKeyEvent(true, Enum.KeyCode.RightShift, false, game)
-			task.wait(0.03)
-			virtualInput:SendKeyEvent(false, Enum.KeyCode.RightShift, false, game)
-		end)
-		if isTouchDevice then
-			applyMobileCursorState()
-		end
+		virtualUser:CaptureController()
+		virtualUser:ClickButton2(Vector2.new())
 	end)
 end
 
@@ -5631,9 +4796,9 @@ task.spawn(function()
 
 end)
 task.wait(1)
-__ZYKE_setupCombatLoop()
-__ZYKE_setupAimLoop()
-__ZYKE_setupAntiAfk()
+setupCombatLoop()
+setupAimLoop()
+setupAntiAfk()
 task.spawn(function()
 	task.wait(1)
 	while true do
@@ -5669,15 +4834,15 @@ task.spawn(function()
 	end
 
 end)
-getgenv().__ZYKE_sawUlt = false
+local sawUlt = false
 task.spawn(function()
 	while true do
 		if isUlted then
-			getgenv().__ZYKE_sawUlt = true
+			sawUlt = true
 		end
 		local playerCount = #playersService2:GetPlayers()
 		if
-			((playerCount <= 7) or (sessionKills >= tonumber(farmSettings.hopOnCount)) or getgenv().__ZYKE_sawUlt)
+			((playerCount <= 7) or (sessionKills >= tonumber(farmSettings.hopOnCount)) or sawUlt)
 			and ((not isUlted) and not isTeleporting)
 		then
 			hopServer()
