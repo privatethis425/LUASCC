@@ -17,17 +17,28 @@ local CONFIG = {
     deleteTexturesAndMeshes = true,
     flattenRemainingMap = true,
 
-    batchSize = 70,
-    frameBudgetSeconds = 0.0015,
+    batchSize = 120,
+    frameBudgetSeconds = 0.003,
 
     -- Fallen-object sweep: catches dead ragdoll limbs, dropped tools, and
     -- knocked-off debris that pile up mid-match and don't get caught by the
     -- DescendantAdded queue alone. This is the main low-end lag source.
     sweepFallenDebris = true,
-    fallenSweepInterval = 1.5,
-    fallenSweepBatchSize = 40,
+    fallenSweepInterval = 0.5,
+    fallenSweepBatchSize = 150,
     fallenYThreshold = -25,
-    unanchoredIdleSeconds = 4,
+    unanchoredIdleSeconds = 1.5,
+}
+
+-- Heavy VFX that must be destroyed outright (not merely disabled) the moment
+-- they're seen, since disabling still leaves the render/physics cost on
+-- some of these on low-end devices. Explosion/Fire/Smoke are the "cracking"
+-- effect culprits during skill spam.
+local FORCE_DESTROY_VFX = {
+    Explosion = true,
+    Fire = true,
+    Smoke = true,
+    Sparkles = true,
 }
 
 local environment = _G
@@ -309,27 +320,26 @@ local function isStreakOrSkillRelated(instance)
     end
     -- TSB's killstreak counter lives as a standalone tree
     -- (Workspace.Cutscenes.Billboard.Killstreak) that isn't parented under
-    -- any character, so isPlayerOwned never protects it. Walk every
-    -- ancestor by name so the whole Cutscenes/Billboard/Killstreak chain,
-    -- and anything nested inside it, is whitelisted regardless of depth.
+    -- any character. Only the streak/combo sub-path is whitelisted here -
+    -- NOT the whole Cutscenes folder, since ult/skill cinematics for OTHER
+    -- characters also live under Cutscenes and must still be cleaned up.
     local ancestor = instance
     while ancestor do
         local ancestorName = string.lower(ancestor.Name)
         if string.find(ancestorName, "streak", 1, true)
-            or string.find(ancestorName, "combo", 1, true)
-            or ancestorName == "cutscenes" then
+            or string.find(ancestorName, "combo", 1, true) then
             return true
         end
         ancestor = ancestor.Parent
     end
-    -- Ult/skill VFX (e.g. dragon summon models) often spawn as free-standing
-    -- Workspace models, not parented to a character. Whitelist by name so
-    -- they never get treated as map decor/trees and disabled or destroyed.
-    if nameHas(instance, ULT_KEEP_WORDS) then
+    -- Ult/skill VFX (e.g. dragon summon models) are only whitelisted when
+    -- they belong to the local Martial Artist. Everyone else's ult/skill
+    -- effects must be cleaned up like any other VFX.
+    if isProtectedMartialArtistEffect(instance) and nameHas(instance, ULT_KEEP_WORDS) then
         return true
     end
     local parentModel = instance:FindFirstAncestorOfClass("Model")
-    if parentModel and nameHas(parentModel, ULT_KEEP_WORDS) then
+    if parentModel and nameHas(parentModel, ULT_KEEP_WORDS) and isProtectedMartialArtistEffect(parentModel) then
         return true
     end
     return false
@@ -830,7 +840,41 @@ for _, instance in ipairs(Workspace:GetChildren()) do
     end
 end
 
-connect(Workspace.DescendantAdded, enqueue)
+local function isImmediateHeavyVfx(instance)
+    if not FORCE_DESTROY_VFX[instance.ClassName] then
+        return false
+    end
+    if isProtectedMartialArtistEffect(instance) then
+        return false
+    end
+    if isUnderCamera(instance) then
+        return false
+    end
+    local _, character = characterOwner(instance)
+    if character and isProtectedMartialArtistEffect(instance) then
+        return false
+    end
+    return true
+end
+
+connect(Workspace.DescendantAdded, function(instance)
+    -- Heavy VFX (Explosion/Fire/Smoke/Sparkles) skip the frame-budgeted queue
+    -- entirely and get killed the instant they spawn, since waiting even one
+    -- queue cycle during skill spam is what causes the visible "cracking"
+    -- stutter on low-end devices.
+    if isImmediateHeavyVfx(instance) then
+        pcall(function()
+            if instance:IsA("Explosion") then
+                instance.Visible = false
+            elseif instance:IsA("Fire") or instance:IsA("Smoke") or instance:IsA("Sparkles") then
+                instance.Enabled = false
+            end
+        end)
+        safeDestroy(instance)
+        return
+    end
+    enqueue(instance)
+end)
 
 task.spawn(function()
     while controller.running do
