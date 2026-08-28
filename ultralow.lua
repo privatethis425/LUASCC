@@ -32,13 +32,16 @@ local CONFIG = {
 
 -- Heavy VFX that must be destroyed outright (not merely disabled) the moment
 -- they're seen, since disabling still leaves the render/physics cost on
--- some of these on low-end devices. Explosion/Fire/Smoke are the "cracking"
--- effect culprits during skill spam.
+-- some of these on low-end devices. Explosion/Fire/Smoke/Beam/Highlight are
+-- the "cracking" effect culprits during skill spam and multi-hit combos.
 local FORCE_DESTROY_VFX = {
     Explosion = true,
     Fire = true,
     Smoke = true,
     Sparkles = true,
+    Beam = true,
+    Highlight = true,
+    Trail = true,
 }
 
 local environment = _G
@@ -697,6 +700,51 @@ local function isFallenDebrisPart(part)
     return false
 end
 
+local function isImmediateHeavyVfx(instance)
+    if isProtectedMartialArtistEffect(instance) then
+        return false
+    end
+    if isUnderCamera(instance) then
+        return false
+    end
+    if FORCE_DESTROY_VFX[instance.ClassName] then
+        return true
+    end
+    -- Any VFX-class object nested under a foreign (non-Martial-Artist) ult/
+    -- skill Model - the root may not have spawned before its children in
+    -- some replication orders, so check both directions.
+    if VFX_CLASSES[instance.ClassName] then
+        local parentModel = instance:FindFirstAncestorOfClass("Model")
+        if parentModel and nameHas(parentModel, ULT_KEEP_WORDS) and not isProtectedMartialArtistEffect(parentModel) then
+            return true
+        end
+    end
+    return false
+end
+
+-- Ult/skill Model/Folder roots (dragon summons, burst auras, etc.) from any
+-- character OTHER than the local Martial Artist. These often spawn as a big
+-- tree with many parts/particles all at once, so waiting even one queue
+-- cycle lets the whole tree render for a frame first - that's the mobile
+-- FPS spike. Kill the root the instant it appears instead.
+local function isForeignUltSkillEffect(instance)
+    if isProtectedMartialArtistEffect(instance) then
+        return false
+    end
+    if isUnderCamera(instance) then
+        return false
+    end
+    if not (instance:IsA("Model") or instance:IsA("Folder")) then
+        return false
+    end
+    -- Streak/combo/killstreak GUIs are Models/Folders too in some builds -
+    -- isStreakOrSkillRelated already excludes those, so skip if it claims it.
+    if isStreakOrSkillRelated(instance) then
+        return false
+    end
+    return nameHas(instance, ULT_KEEP_WORDS)
+end
+
 local fallenSweepIndex = 1
 
 local function sweepFallenDebris()
@@ -716,12 +764,21 @@ local function sweepFallenDebris()
 
     local processedCount = 0
     while processedCount < CONFIG.fallenSweepBatchSize and fallenSweepIndex <= total do
-        local part = descendants[fallenSweepIndex]
+        local instance = descendants[fallenSweepIndex]
         fallenSweepIndex += 1
         processedCount += 1
 
-        if part and part.Parent ~= nil and isFallenDebrisPart(part) then
-            safeDestroy(part)
+        if instance and instance.Parent ~= nil then
+            -- Safety net: catches any foreign ult/skill Model or heavy VFX
+            -- that slipped past the DescendantAdded instant-kill listener
+            -- (e.g. it existed before this script started, or replicated
+            -- during a race). Reuses this same pass instead of a second
+            -- full GetDescendants() scan, since that call is costly on mobile.
+            if isForeignUltSkillEffect(instance) or isImmediateHeavyVfx(instance) then
+                safeDestroy(instance)
+            elseif isFallenDebrisPart(instance) then
+                safeDestroy(instance)
+            end
         end
     end
 end
@@ -840,24 +897,12 @@ for _, instance in ipairs(Workspace:GetChildren()) do
     end
 end
 
-local function isImmediateHeavyVfx(instance)
-    if not FORCE_DESTROY_VFX[instance.ClassName] then
-        return false
-    end
-    if isProtectedMartialArtistEffect(instance) then
-        return false
-    end
-    if isUnderCamera(instance) then
-        return false
-    end
-    local _, character = characterOwner(instance)
-    if character and isProtectedMartialArtistEffect(instance) then
-        return false
-    end
-    return true
-end
-
 connect(Workspace.DescendantAdded, function(instance)
+    if isForeignUltSkillEffect(instance) then
+        safeDestroy(instance)
+        return
+    end
+
     -- Heavy VFX (Explosion/Fire/Smoke/Sparkles) skip the frame-budgeted queue
     -- entirely and get killed the instant they spawn, since waiting even one
     -- queue cycle during skill spam is what causes the visible "cracking"
