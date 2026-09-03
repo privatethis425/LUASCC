@@ -71,6 +71,8 @@ local runService = game:GetService("RunService")
 local userInputService = game:GetService("UserInputService")
 local coreGuiService = game:GetService("CoreGui")
 local replicatedStorage = game:GetService("ReplicatedStorage")
+local guiService = game:GetService("GuiService")
+local virtualInputManager = game:GetService("VirtualInputManager")
 
 -- State.
 local localPlayer = playersService.LocalPlayer
@@ -524,6 +526,154 @@ local function activateTool(tool)
 	end)
 end
 
+---Return screen coordinates for synthetic fire input.
+---@return Vector2
+local function getFireScreenPosition()
+	currentCamera = workspace.CurrentCamera
+
+	if currentCamera then
+		local viewportCenter = Vector2.new(currentCamera.ViewportSize.X / 2, currentCamera.ViewportSize.Y / 2)
+		local inset = guiService:GetGuiInset()
+		return viewportCenter + Vector2.new(inset.X, inset.Y)
+	end
+
+	local mousePosition = userInputService:GetMouseLocation()
+	return Vector2.new(mousePosition.X, mousePosition.Y)
+end
+
+---Send mouse input because many mobile gun scripts still listen for mouse down.
+local function clickPrimaryInput()
+	if mouse1click then
+		pcall(mouse1click)
+		return
+	end
+
+	if mouse1press and mouse1release then
+		pcall(mouse1press)
+		task.delay(0.018, function()
+			pcall(mouse1release)
+		end)
+	end
+end
+
+---Send Roblox virtual input for mobile button-backed tools.
+local function clickVirtualPrimaryInput()
+	local screenPosition = getFireScreenPosition()
+
+	pcall(function()
+		virtualInputManager:SendMouseButtonEvent(screenPosition.X, screenPosition.Y, 0, true, game, 0)
+	end)
+
+	task.delay(0.018, function()
+		pcall(function()
+			virtualInputManager:SendMouseButtonEvent(screenPosition.X, screenPosition.Y, 0, false, game, 0)
+		end)
+	end)
+end
+
+---Return whether a GUI button looks like a mobile fire control.
+---@param button GuiButton
+---@return boolean
+local function isMobileFireButton(button)
+	local buttonName = string.lower(button.Name or "")
+	local buttonText = button:IsA("TextButton") and string.lower(button.Text or "") or ""
+	local matchedName = buttonName:find("fire")
+		or buttonName:find("shoot")
+		or buttonName:find("shot")
+		or buttonName:find("attack")
+		or buttonName:find("combat")
+		or buttonName:find("primary")
+		or buttonName:find("gun")
+		or buttonName:find("m1")
+		or buttonName:find("use")
+	local matchedText = buttonText:find("fire")
+		or buttonText:find("shoot")
+		or buttonText:find("shot")
+		or buttonText:find("attack")
+		or buttonText:find("combat")
+		or buttonText:find("primary")
+		or buttonText:find("m1")
+		or buttonText:find("use")
+
+	if matchedName or matchedText then
+		return true
+	end
+
+	return false
+end
+
+---Fire visible mobile shoot buttons when the gun controller ignores raw input.
+local function clickMobileFireButtons()
+	localPlayer = playersService.LocalPlayer
+
+	local roots = {}
+	local playerGui = localPlayer and localPlayer:FindFirstChildOfClass("PlayerGui")
+
+	if playerGui then
+		table.insert(roots, playerGui)
+	end
+
+	if gethui then
+		table.insert(roots, gethui())
+	end
+
+	table.insert(roots, coreGuiService)
+
+	for _, root in ipairs(roots) do
+		if not root then
+			continue
+		end
+
+		for _, descendant in ipairs(root:GetDescendants()) do
+			if descendant:FindFirstAncestor(GUI_NAME) then
+				continue
+			end
+
+			if not descendant:IsA("GuiButton") or not descendant.Visible or not isMobileFireButton(descendant) then
+				continue
+			end
+
+			pcall(function()
+				descendant:Activate()
+			end)
+
+			if firesignal then
+				pcall(firesignal, descendant.MouseButton1Down)
+				pcall(firesignal, descendant.MouseButton1Click)
+				pcall(firesignal, descendant.Activated)
+				task.delay(0.018, function()
+					pcall(firesignal, descendant.MouseButton1Up)
+				end)
+			end
+		end
+	end
+end
+
+---Fire common character remotes used by mobile combat controllers.
+local function fireCharacterPrimaryInput()
+	localPlayer = playersService.LocalPlayer
+
+	local character = localPlayer and localPlayer.Character
+	if not character then
+		return
+	end
+
+	local communicate = character:FindFirstChild("Communicate")
+	if communicate and communicate:IsA("RemoteEvent") then
+		pcall(function()
+			communicate:FireServer({ Goal = "LeftClick" })
+		end)
+
+		task.delay(0.05, function()
+			if communicate.Parent then
+				pcall(function()
+					communicate:FireServer({ Goal = "LeftClickRelease" })
+				end)
+			end
+		end)
+	end
+end
+
 ---Report a visible gun hit when mobile Tool activation is ignored.
 ---@param targetCharacter Model?
 ---@param hitPart BasePart?
@@ -566,6 +716,11 @@ local function firePrimaryWeapon(targetCharacter, hitPart)
 	local tool = equipCombatTool()
 
 	if userInputService.TouchEnabled then
+		clickPrimaryInput()
+		clickVirtualPrimaryInput()
+		clickMobileFireButtons()
+		fireCharacterPrimaryInput()
+
 		if tool then
 			activateTool(tool)
 		end
@@ -575,17 +730,7 @@ local function firePrimaryWeapon(targetCharacter, hitPart)
 		return
 	end
 
-	if mouse1click then
-		pcall(mouse1click)
-		return
-	end
-
-	if mouse1press and mouse1release then
-		pcall(mouse1press)
-		task.delay(0.018, function()
-			pcall(mouse1release)
-		end)
-	end
+	clickPrimaryInput()
 
 	if tool then
 		activateTool(tool)
@@ -1588,7 +1733,8 @@ local function shouldMobileTrigger(targetCharacter, aimPart, distance)
 		end
 
 		local part, partDistance = getClosestTriggerPart(character, screenPosition)
-		if not part or not partDistance or partDistance > Galaxy.triggerRadius or partDistance >= closestDistance then
+		local triggerRadius = part and math.max(Galaxy.triggerRadius, getBodyPartScreenRadius(part)) or Galaxy.triggerRadius
+		if not part or not partDistance or partDistance > triggerRadius or partDistance >= closestDistance then
 			continue
 		end
 
