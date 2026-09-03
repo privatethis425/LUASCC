@@ -677,6 +677,38 @@ local function isVisible(part)
 	return not result or result.Instance:IsDescendantOf(part.Parent)
 end
 
+---Return the visible trigger part closest to the provided screen position.
+---@param character Model
+---@param screenPosition Vector2
+---@return BasePart?, number?
+local function getClosestTriggerPart(character, screenPosition)
+	local closestPart = nil
+	local closestDistance = math.huge
+
+	for _, partName in ipairs(triggerPartNames) do
+		local part = character:FindFirstChild(partName)
+		if not part or not part:IsA("BasePart") or not isVisible(part) then
+			continue
+		end
+
+		local viewportPosition, onScreen = currentCamera:WorldToViewportPoint(part.Position)
+		if not onScreen then
+			continue
+		end
+
+		local distance =
+			(Vector2.new(viewportPosition.X, viewportPosition.Y) - Vector2.new(screenPosition.X, screenPosition.Y)).Magnitude
+		if distance >= closestDistance then
+			continue
+		end
+
+		closestPart = part
+		closestDistance = distance
+	end
+
+	return closestPart, closestDistance
+end
+
 ---Return the target character that owns an instance.
 ---@param instance Instance
 ---@return Model?
@@ -798,7 +830,7 @@ end
 
 ---Return whether the mouse ray directly hits an enemy before a wall.
 ---@param mousePos Vector2
----@return boolean, Model?
+---@return boolean, Model?, BasePart?
 local function getMouseRayTarget(mousePos)
 	local viewportRay = currentCamera:ViewportPointToRay(mousePos.X, mousePos.Y)
 	local result =
@@ -810,6 +842,11 @@ local function getMouseRayTarget(mousePos)
 
 	local hitCharacter = getCharacterFromInstance(result.Instance)
 	if hitCharacter and isValidTarget(hitCharacter) then
+		local hitPart = result.Instance
+		if hitPart:IsA("BasePart") and hitPart:IsDescendantOf(hitCharacter) and bodyPartNames[hitPart.Name] then
+			return true, hitCharacter, hitPart
+		end
+
 		return true, hitCharacter
 	end
 
@@ -1516,6 +1553,66 @@ local function shouldTrigger()
 	return false
 end
 
+---Return a mobile center-screen trigger target and exact visible hit part.
+---@param targetCharacter Model?
+---@param aimPart BasePart?
+---@param distance number?
+---@return boolean, Model?, BasePart?
+local function shouldMobileTrigger(targetCharacter, aimPart, distance)
+	currentCamera = workspace.CurrentCamera
+	charactersFolder = workspace:FindFirstChild("Characters")
+
+	if not currentCamera or not charactersFolder then
+		return false
+	end
+
+	local screenPosition = getAimScreenPosition()
+	local rayHit, rayCharacter, rayPart = getMouseRayTarget(screenPosition)
+
+	if rayHit and rayCharacter then
+		if rayPart and isVisible(rayPart) then
+			return true, rayCharacter, rayPart
+		end
+
+		local closestPart = getClosestTriggerPart(rayCharacter, screenPosition)
+		return closestPart ~= nil, rayCharacter, closestPart
+	end
+
+	local closestCharacter = nil
+	local closestPart = nil
+	local closestDistance = math.huge
+
+	for _, character in ipairs(charactersFolder:GetChildren()) do
+		if not isValidTarget(character) then
+			continue
+		end
+
+		local part, partDistance = getClosestTriggerPart(character, screenPosition)
+		if not part or not partDistance or partDistance > Galaxy.triggerRadius or partDistance >= closestDistance then
+			continue
+		end
+
+		closestCharacter = character
+		closestPart = part
+		closestDistance = partDistance
+	end
+
+	if closestCharacter and closestPart then
+		return true, closestCharacter, closestPart
+	end
+
+	if not targetCharacter or not aimPart or not distance or not isVisible(aimPart) then
+		return false
+	end
+
+	local triggerRadius = math.max(Galaxy.triggerRadius, getBodyPartScreenRadius(aimPart))
+	if distance > triggerRadius then
+		return false
+	end
+
+	return true, targetCharacter, aimPart
+end
+
 ---Teleport behind one enemy and send a knife melee hit.
 ---@param enemy Model
 ---@return boolean
@@ -1816,10 +1913,15 @@ local function updateCombat()
 	local triggerReady = os.clock() - Galaxy.lastTrigger >= Galaxy.triggerDelay
 	local triggerHit = false
 	local aimPartVisible = aimPart and isVisible(aimPart)
+	local triggerTargetCharacter = targetCharacter
+	local triggerHitPart = aimPart
 
 	if Galaxy.triggerbot and triggerReady then
 		if userInputService.TouchEnabled then
-			triggerHit = aimPartVisible == true
+			local mobileHit, mobileCharacter, mobilePart = shouldMobileTrigger(targetCharacter, aimPart, distance)
+			triggerHit = mobileHit
+			triggerTargetCharacter = mobileCharacter or triggerTargetCharacter
+			triggerHitPart = mobilePart or triggerHitPart
 		else
 			triggerHit = shouldTrigger()
 		end
@@ -1837,7 +1939,7 @@ local function updateCombat()
 		)
 	then
 		Galaxy.lastTrigger = os.clock()
-		firePrimaryWeapon(targetCharacter, aimPart)
+		firePrimaryWeapon(triggerTargetCharacter, triggerHitPart)
 	end
 end
 
