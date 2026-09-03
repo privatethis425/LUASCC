@@ -498,16 +498,79 @@ local function equipCombatTool()
 	return equippedTool
 end
 
+---Activate a tool without touching mobile movement controls.
+---@param tool Tool
+local function activateTool(tool)
+	pcall(function()
+		tool.ManualActivationOnly = false
+	end)
+
+	pcall(function()
+		tool:Activate()
+	end)
+
+	if firesignal then
+		pcall(firesignal, tool.Activated)
+	end
+
+	task.delay(0.035, function()
+		pcall(function()
+			tool:Deactivate()
+		end)
+
+		if firesignal then
+			pcall(firesignal, tool.Deactivated)
+		end
+	end)
+end
+
+---Report a visible gun hit when mobile Tool activation is ignored.
+---@param targetCharacter Model?
+---@param hitPart BasePart?
+local function reportGunHit(targetCharacter, hitPart)
+	if not targetCharacter or not hitPart then
+		return
+	end
+
+	local targetPlayer = playersService:FindFirstChild(targetCharacter.Name)
+	if not targetPlayer then
+		return
+	end
+
+	local origin = currentCamera and currentCamera.CFrame.Position or hitPart.Position
+	local direction = hitPart.Position - origin
+	if direction.Magnitude <= 0 then
+		return
+	end
+
+	pcall(function()
+		reportHitRemote:FireServer({ forceShow = true })
+		reportHitRemote:FireServer({
+			kind = "gun",
+			targetUserId = targetPlayer.UserId,
+			targetModel = targetCharacter,
+			hitPart = hitPart,
+			position = hitPart.Position,
+			origin = origin,
+			direction = direction.Unit,
+			at = workspace:GetServerTimeNow(),
+			headshot = hitPart.Name == "Head",
+		})
+	end)
+end
+
 ---Fire the local weapon across PC and mobile input modes.
-local function firePrimaryWeapon()
+---@param targetCharacter Model?
+---@param hitPart BasePart?
+local function firePrimaryWeapon(targetCharacter, hitPart)
 	local tool = equipCombatTool()
 
 	if userInputService.TouchEnabled then
 		if tool then
-			pcall(function()
-				tool:Activate()
-			end)
+			activateTool(tool)
 		end
+
+		reportGunHit(targetCharacter, hitPart)
 
 		return
 	end
@@ -525,9 +588,7 @@ local function firePrimaryWeapon()
 	end
 
 	if tool then
-		pcall(function()
-			tool:Activate()
-		end)
+		activateTool(tool)
 	end
 end
 
@@ -1737,7 +1798,7 @@ end
 
 ---Aim and click when enabled.
 local function updateCombat()
-	local _, aimPart, distance = getClosestTarget()
+	local targetCharacter, aimPart, distance = getClosestTarget()
 
 	if statusLabel then
 		statusLabel.Text = "Combat: "
@@ -1776,7 +1837,7 @@ local function updateCombat()
 		)
 	then
 		Galaxy.lastTrigger = os.clock()
-		firePrimaryWeapon()
+		firePrimaryWeapon(targetCharacter, aimPart)
 	end
 end
 
