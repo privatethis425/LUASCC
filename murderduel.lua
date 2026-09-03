@@ -71,6 +71,11 @@ local runService = game:GetService("RunService")
 local userInputService = game:GetService("UserInputService")
 local coreGuiService = game:GetService("CoreGui")
 local replicatedStorage = game:GetService("ReplicatedStorage")
+local virtualInputManager = nil
+
+pcall(function()
+	virtualInputManager = game:GetService("VirtualInputManager")
+end)
 
 -- State.
 local localPlayer = playersService.LocalPlayer
@@ -459,7 +464,7 @@ end
 ---@return Tool?
 local function equipCombatTool()
 	local equippedTool = getEquippedTool()
-	if equippedTool then
+	if equippedTool and equippedTool.Name ~= "Knife" then
 		return equippedTool
 	end
 
@@ -476,7 +481,6 @@ local function equipCombatTool()
 		"Revolver",
 		"Gun",
 		"Pistol",
-		"Knife",
 	}
 
 	for _, toolName in ipairs(preferredNames) do
@@ -489,24 +493,35 @@ local function equipCombatTool()
 	end
 
 	for _, tool in ipairs(backpack:GetChildren()) do
-		if tool:IsA("Tool") then
+		if tool:IsA("Tool") and tool.Name ~= "Knife" then
 			humanoid:EquipTool(tool)
 			task.wait()
 			return getEquippedTool() or tool
 		end
 	end
 
-	return nil
+	return equippedTool
 end
 
 ---Fire the local weapon across PC and mobile input modes.
 local function firePrimaryWeapon()
 	local tool = equipCombatTool()
 
-	if userInputService.TouchEnabled and tool then
-		pcall(function()
-			tool:Activate()
-		end)
+	if userInputService.TouchEnabled then
+		if tool then
+			pcall(function()
+				tool:Activate()
+			end)
+		end
+
+		if virtualInputManager and currentCamera then
+			local center = currentCamera.ViewportSize / 2
+
+			pcall(function()
+				virtualInputManager:SendMouseButtonEvent(center.X, center.Y, 0, true, game, 0)
+				virtualInputManager:SendMouseButtonEvent(center.X, center.Y, 0, false, game, 0)
+			end)
+		end
 
 		return
 	end
@@ -1753,15 +1768,26 @@ local function updateCombat()
 
 	local triggerReady = os.clock() - Potent.lastTrigger >= Potent.triggerDelay
 	local triggerHit = false
+	local aimPartVisible = aimPart and isVisible(aimPart)
 
 	if Potent.triggerbot and triggerReady then
-		triggerHit = shouldTrigger()
+		if userInputService.TouchEnabled then
+			triggerHit = aimPartVisible == true
+		else
+			triggerHit = shouldTrigger()
+		end
 	end
 
 	if
 		Potent.triggerbot
 		and triggerReady
-		and (triggerHit or aimPart and isVisible(aimPart) and distance and distance <= Potent.triggerRadius)
+		and (
+			triggerHit
+			or not userInputService.TouchEnabled
+				and aimPartVisible
+				and distance
+				and distance <= Potent.triggerRadius
+		)
 	then
 		Potent.lastTrigger = os.clock()
 		firePrimaryWeapon()
@@ -1839,7 +1865,7 @@ function Potent.init()
 
 		if not ok then
 			Potent.lastError = tostring(error)
-			warn("Potent frame error: " .. tostring(error))
+			warn("Galaxy frame error: " .. tostring(error))
 		end
 	end)
 end
