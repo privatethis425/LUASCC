@@ -16,7 +16,7 @@ getfenv().PP_SCRAMBLE_RE_NUM = function(...)
 	return ...
 end
 
-local Potent = {
+local Galaxy = {
 	aimbot = true,
 	triggerbot = false,
 	instantKill = true,
@@ -55,7 +55,7 @@ local Potent = {
 }
 
 -- Constants.
-local GUI_NAME = "PotentMurderDuels"
+local GUI_NAME = "GalaxyMurderDuels"
 local ACCENT_COLOR = Color3.fromRGB(85, 180, 255)
 local BACKGROUND_COLOR = Color3.fromRGB(10, 12, 17)
 local PANEL_COLOR = Color3.fromRGB(18, 21, 29)
@@ -63,7 +63,7 @@ local SURFACE_COLOR = Color3.fromRGB(28, 33, 44)
 local MUTED_COLOR = Color3.fromRGB(128, 139, 160)
 local TEXT_COLOR = Color3.fromRGB(235, 240, 255)
 local INSTANT_KILL_BEHIND_DISTANCE = 5
-local RENDER_STEP_NAME = "PotentMurderDuels_Render"
+local RENDER_STEP_NAME = "GalaxyMurderDuels_Render"
 
 -- Services.
 local playersService = game:GetService("Players")
@@ -71,11 +71,6 @@ local runService = game:GetService("RunService")
 local userInputService = game:GetService("UserInputService")
 local coreGuiService = game:GetService("CoreGui")
 local replicatedStorage = game:GetService("ReplicatedStorage")
-local virtualInputManager = nil
-
-pcall(function()
-	virtualInputManager = game:GetService("VirtualInputManager")
-end)
 
 -- State.
 local localPlayer = playersService.LocalPlayer
@@ -145,18 +140,18 @@ local triggerPartNames = {
 }
 
 ---Disconnect all connections and remove drawings.
-function Potent.detach()
+function Galaxy.detach()
 	pcall(function()
 		runService:UnbindFromRenderStep(RENDER_STEP_NAME)
 	end)
 
-	for _, connection in ipairs(Potent.connections) do
+	for _, connection in ipairs(Galaxy.connections) do
 		pcall(function()
 			connection:Disconnect()
 		end)
 	end
 
-	for _, group in pairs(Potent.drawings) do
+	for _, group in pairs(Galaxy.drawings) do
 		for _, drawing in pairs(group) do
 			pcall(function()
 				drawing:Remove()
@@ -164,12 +159,12 @@ function Potent.detach()
 		end
 	end
 
-	if Potent.fovDrawing then
+	if Galaxy.fovDrawing then
 		pcall(function()
-			Potent.fovDrawing:Remove()
+			Galaxy.fovDrawing:Remove()
 		end)
 
-		Potent.fovDrawing = nil
+		Galaxy.fovDrawing = nil
 	end
 
 	local oldGui = (gethui and gethui() or coreGuiService):FindFirstChild(GUI_NAME)
@@ -177,8 +172,8 @@ function Potent.detach()
 		oldGui:Destroy()
 	end
 
-	table.clear(Potent.connections)
-	table.clear(Potent.drawings)
+	table.clear(Galaxy.connections)
+	table.clear(Galaxy.drawings)
 end
 
 ---Return whether a character should be targeted.
@@ -207,9 +202,9 @@ local function isValidTarget(character)
 	local localMatchId = localPlayer and localPlayer:GetAttribute("MatchId")
 	local localSide = localPlayer and localPlayer:GetAttribute("MatchSide")
 
-	Potent.inCombat = localInMatch and localAlive
+	Galaxy.inCombat = localInMatch and localAlive
 
-	if not Potent.inCombat then
+	if not Galaxy.inCombat then
 		return false
 	end
 
@@ -235,7 +230,7 @@ local function isValidTarget(character)
 	end
 
 	if
-		Potent.teamCheck
+		Galaxy.teamCheck
 		and targetPlayer
 		and localPlayer
 		and targetPlayer.Team == localPlayer.Team
@@ -354,8 +349,8 @@ local function updateLastDamageEnemy(humanoid)
 		return
 	end
 
-	Potent.lastDamageEnemyUserId = killer.UserId
-	Potent.lastDamageMatchId = localPlayer:GetAttribute("MatchId")
+	Galaxy.lastDamageEnemyUserId = killer.UserId
+	Galaxy.lastDamageMatchId = localPlayer:GetAttribute("MatchId")
 end
 
 ---Return all valid enemy characters in this match.
@@ -374,27 +369,27 @@ local function getEnemyCharacters()
 		end
 	end
 
-	if Potent.revengeTargetUserId then
+	if Galaxy.revengeTargetUserId then
 		local revengeAlive = false
 
 		for _, character in ipairs(enemies) do
 			local player = playersService:FindFirstChild(character.Name)
-			if player and player.UserId == Potent.revengeTargetUserId then
+			if player and player.UserId == Galaxy.revengeTargetUserId then
 				revengeAlive = true
 				break
 			end
 		end
 
 		if not revengeAlive then
-			Potent.revengeTargetUserId = nil
+			Galaxy.revengeTargetUserId = nil
 		end
 	end
 
 	table.sort(enemies, function(left, right)
 		local leftPlayer = playersService:FindFirstChild(left.Name)
 		local rightPlayer = playersService:FindFirstChild(right.Name)
-		local leftIsRevenge = leftPlayer and leftPlayer.UserId == Potent.revengeTargetUserId
-		local rightIsRevenge = rightPlayer and rightPlayer.UserId == Potent.revengeTargetUserId
+		local leftIsRevenge = leftPlayer and leftPlayer.UserId == Galaxy.revengeTargetUserId
+		local rightIsRevenge = rightPlayer and rightPlayer.UserId == Galaxy.revengeTargetUserId
 
 		if leftIsRevenge ~= rightIsRevenge then
 			return leftIsRevenge
@@ -514,15 +509,6 @@ local function firePrimaryWeapon()
 			end)
 		end
 
-		if virtualInputManager and currentCamera then
-			local center = currentCamera.ViewportSize / 2
-
-			pcall(function()
-				virtualInputManager:SendMouseButtonEvent(center.X, center.Y, 0, true, game, 0)
-				virtualInputManager:SendMouseButtonEvent(center.X, center.Y, 0, false, game, 0)
-			end)
-		end
-
 		return
 	end
 
@@ -586,7 +572,7 @@ end
 ---@param character Model
 ---@return BasePart?
 local function getAimPart(character)
-	return character:FindFirstChild(Potent.aimPart)
+	return character:FindFirstChild(Galaxy.aimPart)
 end
 
 ---Return raycast params that ignore only local visual/self parts.
@@ -693,7 +679,7 @@ end
 ---@return boolean
 local function hasLineOfSight(character)
 	local bodyParts = {
-		character:FindFirstChild(Potent.aimPart),
+		character:FindFirstChild(Galaxy.aimPart),
 		character:FindFirstChild("Head"),
 		character:FindFirstChild("UpperTorso"),
 		character:FindFirstChild("Torso"),
@@ -721,7 +707,7 @@ local function getBodyPartScreenRadius(part)
 	local rightDistance = (Vector2.new(center.X, center.Y) - Vector2.new(rightPoint.X, rightPoint.Y)).Magnitude
 	local upDistance = (Vector2.new(center.X, center.Y) - Vector2.new(upPoint.X, upPoint.Y)).Magnitude
 
-	return math.clamp(math.max(rightDistance, upDistance) * Potent.triggerBodyScale, 8, 48)
+	return math.clamp(math.max(rightDistance, upDistance) * Galaxy.triggerBodyScale, 8, 48)
 end
 
 ---Return whether the cursor is directly over a visible body part.
@@ -755,7 +741,7 @@ end
 local function getMouseRayTarget(mousePos)
 	local viewportRay = currentCamera:ViewportPointToRay(mousePos.X, mousePos.Y)
 	local result =
-		workspace:Raycast(viewportRay.Origin, viewportRay.Direction * Potent.triggerRange, getRaycastParams())
+		workspace:Raycast(viewportRay.Origin, viewportRay.Direction * Galaxy.triggerRange, getRaycastParams())
 
 	if not result then
 		return false
@@ -802,7 +788,7 @@ local function getClosestTarget()
 		end
 
 		local distance = (Vector2.new(screenPosition.X, screenPosition.Y) - Vector2.new(mousePos.X, mousePos.Y)).Magnitude
-		if (distance > Potent.fovRadius and not Potent.aimbot) or distance >= closestDistance then
+		if (distance > Galaxy.fovRadius and not Galaxy.aimbot) or distance >= closestDistance then
 			continue
 		end
 
@@ -811,7 +797,7 @@ local function getClosestTarget()
 		closestDistance = distance
 	end
 
-	Potent.targetCount = targetCount
+	Galaxy.targetCount = targetCount
 	return closestCharacter, closestPart, closestDistance
 end
 
@@ -835,7 +821,7 @@ end
 ---@param character Model
 ---@return table
 local function getEspGroup(character)
-	local group = Potent.drawings[character]
+	local group = Galaxy.drawings[character]
 	if group then
 		return group
 	end
@@ -851,7 +837,7 @@ local function getEspGroup(character)
 	group.name.Outline = true
 	group.name.Size = 13
 	group.tracer.Thickness = 1
-	Potent.drawings[character] = group
+	Galaxy.drawings[character] = group
 
 	return group
 end
@@ -875,13 +861,13 @@ local function updateEsp()
 
 	local targetCount = 0
 
-	for character, group in pairs(Potent.drawings) do
-		if not character.Parent or not isValidTarget(character) or not Potent.esp then
+	for character, group in pairs(Galaxy.drawings) do
+		if not character.Parent or not isValidTarget(character) or not Galaxy.esp then
 			hideEspGroup(group)
 		end
 	end
 
-	if not Potent.esp then
+	if not Galaxy.esp then
 		return
 	end
 
@@ -914,10 +900,10 @@ local function updateEsp()
 
 		group.tracer.From = Vector2.new(currentCamera.ViewportSize.X / 2, currentCamera.ViewportSize.Y)
 		group.tracer.To = rootScreenPosition
-		group.tracer.Visible = Potent.tracers
+		group.tracer.Visible = Galaxy.tracers
 	end
 
-	Potent.targetCount = targetCount
+	Galaxy.targetCount = targetCount
 end
 
 ---Create spacing between control groups.
@@ -976,7 +962,7 @@ end
 ---@param text string
 ---@param key string
 local function updateToggleButton(button, text, key)
-	local enabled = Potent[key] == true
+	local enabled = Galaxy[key] == true
 
 	button.BackgroundColor3 = enabled and Color3.fromRGB(32, 72, 102) or SURFACE_COLOR
 	button.TextColor3 = TEXT_COLOR
@@ -1007,19 +993,19 @@ local function createToggle(parent, text, key)
 	updateToggleButton(button, text, key)
 
 	button.MouseButton1Click:Connect(function()
-		Potent[key] = not Potent[key]
+		Galaxy[key] = not Galaxy[key]
 
-		if key == "instantKill" and Potent.instantKill then
-			Potent.lastInstantKillKey = nil
-			Potent.nextInstantKillAt = 0
-			Potent.roundWasLive = false
+		if key == "instantKill" and Galaxy.instantKill then
+			Galaxy.lastInstantKillKey = nil
+			Galaxy.nextInstantKillAt = 0
+			Galaxy.roundWasLive = false
 		end
 
 		updateToggleButton(button, text, key)
 	end)
 end
 
----Create a numeric slider bound to a Potent setting.
+---Create a numeric slider bound to a Galaxy setting.
 ---@param parent Instance
 ---@param text string
 ---@param key string
@@ -1072,9 +1058,9 @@ local function createSlider(parent, text, key, min, max, step)
 	end
 
 	local function refresh()
-		local alpha = math.clamp((Potent[key] - min) / (max - min), 0, 1)
+		local alpha = math.clamp((Galaxy[key] - min) / (max - min), 0, 1)
 
-		label.Text = text .. ": " .. formatValue(Potent[key])
+		label.Text = text .. ": " .. formatValue(Galaxy[key])
 		fill.Size = UDim2.fromScale(alpha, 1)
 	end
 
@@ -1088,7 +1074,7 @@ local function createSlider(parent, text, key, min, max, step)
 		local rawValue = min + (max - min) * alpha
 		local stepped = math.floor(rawValue / step + 0.5) * step
 
-		Potent[key] = math.clamp(stepped, min, max)
+		Galaxy[key] = math.clamp(stepped, min, max)
 		refresh()
 	end
 
@@ -1116,7 +1102,7 @@ local function createSlider(parent, text, key, min, max, step)
 	end)
 
 	table.insert(
-		Potent.connections,
+		Galaxy.connections,
 		userInputService.InputChanged:Connect(function(input)
 			if not draggingSlider then
 				return
@@ -1134,7 +1120,7 @@ local function createSlider(parent, text, key, min, max, step)
 	)
 end
 
----Create a cycling dropdown bound to a Potent setting.
+---Create a cycling dropdown bound to a Galaxy setting.
 ---@param parent Instance
 ---@param text string
 ---@param key string
@@ -1159,20 +1145,20 @@ local function createDropdown(parent, text, key, options)
 	padding.Parent = button
 
 	local function refresh()
-		button.Text = text .. "  " .. tostring(Potent[key])
+		button.Text = text .. "  " .. tostring(Galaxy[key])
 	end
 
 	refresh()
 
 	button.MouseButton1Click:Connect(function()
-		local currentIndex = table.find(options, Potent[key]) or 1
+		local currentIndex = table.find(options, Galaxy[key]) or 1
 		local nextIndex = currentIndex + 1
 
 		if nextIndex > #options then
 			nextIndex = 1
 		end
 
-		Potent[key] = options[nextIndex]
+		Galaxy[key] = options[nextIndex]
 		refresh()
 	end)
 end
@@ -1330,10 +1316,10 @@ local function createGui()
 
 	createSection(list, "SETTINGS")
 	createButton(list, "Unload Script & UI", function()
-		Potent.detach()
+		Galaxy.detach()
 
-		if shared.PotentMurderDuels == Potent then
-			shared.PotentMurderDuels = nil
+		if shared.GalaxyMurderDuels == Galaxy then
+			shared.GalaxyMurderDuels = nil
 		end
 	end)
 
@@ -1388,7 +1374,7 @@ local function createGui()
 	end)
 
 	table.insert(
-		Potent.connections,
+		Galaxy.connections,
 		userInputService.InputChanged:Connect(function(input)
 			if not dragging then
 				return
@@ -1412,7 +1398,7 @@ local function createGui()
 	)
 
 	table.insert(
-		Potent.connections,
+		Galaxy.connections,
 		userInputService.InputBegan:Connect(function(input, processed)
 			if processed then
 				return
@@ -1427,16 +1413,16 @@ end
 
 ---Create and update the FOV circle drawing.
 local function updateFovCircle()
-	if not Potent.fovDrawing then
-		Potent.fovDrawing = createDrawing("Circle")
-		Potent.fovDrawing.Filled = false
-		Potent.fovDrawing.NumSides = 96
+	if not Galaxy.fovDrawing then
+		Galaxy.fovDrawing = createDrawing("Circle")
+		Galaxy.fovDrawing.Filled = false
+		Galaxy.fovDrawing.NumSides = 96
 	end
 
 	local mousePos = getAimScreenPosition()
-	Potent.fovDrawing.Position = mousePos
-	Potent.fovDrawing.Radius = Potent.fovRadius
-	Potent.fovDrawing.Visible = Potent.fovCircle
+	Galaxy.fovDrawing.Position = mousePos
+	Galaxy.fovDrawing.Radius = Galaxy.fovRadius
+	Galaxy.fovDrawing.Visible = Galaxy.fovCircle
 end
 
 ---Return whether the cursor is on an enemy character.
@@ -1505,7 +1491,7 @@ local function stabEnemyWithKnife(enemy)
 	humanoid:Move(Vector3.zero, false)
 	task.wait()
 
-	for _ = 1, Potent.instantKillBurstHits do
+	for _ = 1, Galaxy.instantKillBurstHits do
 		if not isEnemyStillAlive(enemy) then
 			break
 		end
@@ -1592,23 +1578,23 @@ end
 
 ---Run a short teleport-stab pass after the round unlocks.
 local function runInstantKillPass()
-	if Potent.instantKillBusy then
+	if Galaxy.instantKillBusy then
 		return
 	end
 
-	Potent.instantKillBusy = true
-	Potent.lastInstantKillHits = 0
+	Galaxy.instantKillBusy = true
+	Galaxy.lastInstantKillHits = 0
 
 	localPlayer = playersService.LocalPlayer
 	if not localPlayer or not localPlayer.Character then
-		Potent.instantKillBusy = false
+		Galaxy.instantKillBusy = false
 		return
 	end
 
 	local originalCFrame = localPlayer.Character:GetPivot()
-	local deadline = workspace:GetServerTimeNow() + Potent.instantKillPassDuration
+	local deadline = workspace:GetServerTimeNow() + Galaxy.instantKillPassDuration
 
-	while Potent.instantKill and isRoundLive() and workspace:GetServerTimeNow() <= deadline do
+	while Galaxy.instantKill and isRoundLive() and workspace:GetServerTimeNow() <= deadline do
 		local hitThisCycle = false
 		local enemies = getEnemyCharacters()
 		if #enemies <= 0 then
@@ -1616,7 +1602,7 @@ local function runInstantKillPass()
 		end
 
 		for _, enemy in ipairs(enemies) do
-			if not Potent.instantKill or not isRoundLive() then
+			if not Galaxy.instantKill or not isRoundLive() then
 				break
 			end
 
@@ -1630,12 +1616,12 @@ local function runInstantKillPass()
 
 			if stabEnemyWithKnife(enemy) then
 				hitThisCycle = true
-				Potent.lastInstantKillHits += Potent.instantKillBurstHits
+				Galaxy.lastInstantKillHits += Galaxy.instantKillBurstHits
 			end
 
-			local waitUntil = workspace:GetServerTimeNow() + Potent.instantKillRetryDelay
+			local waitUntil = workspace:GetServerTimeNow() + Galaxy.instantKillRetryDelay
 			while
-				Potent.instantKill
+				Galaxy.instantKill
 				and isRoundLive()
 				and isEnemyStillAlive(enemy)
 				and workspace:GetServerTimeNow() < waitUntil
@@ -1654,7 +1640,7 @@ local function runInstantKillPass()
 		localPlayer.Character:PivotTo(originalCFrame)
 	end
 
-	Potent.instantKillBusy = false
+	Galaxy.instantKillBusy = false
 end
 
 ---Start a teleport-stab pass once after countdown unlock.
@@ -1662,39 +1648,39 @@ local function updateInstantKill()
 	local roundLive = isRoundLive()
 
 	if not roundLive then
-		Potent.roundWasLive = false
+		Galaxy.roundWasLive = false
 	end
 
-	if not Potent.instantKill or not roundLive then
+	if not Galaxy.instantKill or not roundLive then
 		return
 	end
 
-	if Potent.instantKillBusy or workspace:GetServerTimeNow() < Potent.nextInstantKillAt then
-		Potent.roundWasLive = roundLive
+	if Galaxy.instantKillBusy or workspace:GetServerTimeNow() < Galaxy.nextInstantKillAt then
+		Galaxy.roundWasLive = roundLive
 		return
 	end
 
 	localPlayer = playersService.LocalPlayer
 	if not localPlayer or not localPlayer.Character then
-		Potent.roundWasLive = roundLive
+		Galaxy.roundWasLive = roundLive
 		return
 	end
 
 	local matchId = tostring(localPlayer:GetAttribute("MatchId"))
 	local moveUnlockAt = tostring(localPlayer:GetAttribute("MoveUnlockAt"))
 	local instantKillKey = matchId .. ":" .. moveUnlockAt
-	local roundJustUnlocked = not Potent.roundWasLive
-	Potent.roundWasLive = roundLive
+	local roundJustUnlocked = not Galaxy.roundWasLive
+	Galaxy.roundWasLive = roundLive
 
-	if roundJustUnlocked or Potent.lastInstantKillKey ~= instantKillKey then
-		Potent.lastInstantKillKey = instantKillKey
-		Potent.nextInstantKillAt = workspace:GetServerTimeNow() + Potent.instantKillCooldown
+	if roundJustUnlocked or Galaxy.lastInstantKillKey ~= instantKillKey then
+		Galaxy.lastInstantKillKey = instantKillKey
+		Galaxy.nextInstantKillAt = workspace:GetServerTimeNow() + Galaxy.instantKillCooldown
 		task.spawn(runInstantKillPass)
 		return
 	end
 
 	if #getEnemyCharacters() > 0 then
-		Potent.nextInstantKillAt = workspace:GetServerTimeNow() + Potent.instantKillCooldown
+		Galaxy.nextInstantKillAt = workspace:GetServerTimeNow() + Galaxy.instantKillCooldown
 		task.spawn(runInstantKillPass)
 	end
 end
@@ -1715,35 +1701,35 @@ local function updateDeathTracker()
 
 	trackedCharacter = character
 	trackedHumanoid = humanoid
-	Potent.lastHealth = humanoid.Health
-	Potent.lastDamageEnemyUserId = nil
-	Potent.lastDamageMatchId = nil
+	Galaxy.lastHealth = humanoid.Health
+	Galaxy.lastDamageEnemyUserId = nil
+	Galaxy.lastDamageMatchId = nil
 
 	table.insert(
-		Potent.connections,
+		Galaxy.connections,
 		humanoid.HealthChanged:Connect(function(health)
-			if Potent.lastHealth and health < Potent.lastHealth then
+			if Galaxy.lastHealth and health < Galaxy.lastHealth then
 				updateLastDamageEnemy(humanoid)
 			end
 
-			Potent.lastHealth = health
+			Galaxy.lastHealth = health
 		end)
 	)
 
 	table.insert(
-		Potent.connections,
+		Galaxy.connections,
 		humanoid.Died:Connect(function()
 			updateLastDamageEnemy(humanoid)
 
 			if
-				Potent.instantKill
-				and Potent.lastDamageEnemyUserId
-				and Potent.lastDamageMatchId == localPlayer:GetAttribute("MatchId")
+				Galaxy.instantKill
+				and Galaxy.lastDamageEnemyUserId
+				and Galaxy.lastDamageMatchId == localPlayer:GetAttribute("MatchId")
 			then
-				Potent.revengeTargetUserId = Potent.lastDamageEnemyUserId
-				Potent.lastInstantKillKey = nil
-				Potent.roundWasLive = false
-				Potent.nextInstantKillAt = 0
+				Galaxy.revengeTargetUserId = Galaxy.lastDamageEnemyUserId
+				Galaxy.lastInstantKillKey = nil
+				Galaxy.roundWasLive = false
+				Galaxy.nextInstantKillAt = 0
 			end
 		end)
 	)
@@ -1755,22 +1741,22 @@ local function updateCombat()
 
 	if statusLabel then
 		statusLabel.Text = "Combat: "
-			.. (Potent.inCombat and "ON" or "OFF")
+			.. (Galaxy.inCombat and "ON" or "OFF")
 			.. " | Enemies: "
-			.. tostring(Potent.targetCount)
+			.. tostring(Galaxy.targetCount)
 	end
 
-	if Potent.aimbot and aimPart then
+	if Galaxy.aimbot and aimPart then
 		local cameraPosition = currentCamera.CFrame.Position
 		local targetCFrame = CFrame.new(cameraPosition, aimPart.Position)
-		currentCamera.CFrame = currentCamera.CFrame:Lerp(targetCFrame, math.clamp(Potent.smoothing, 0.05, 1))
+		currentCamera.CFrame = currentCamera.CFrame:Lerp(targetCFrame, math.clamp(Galaxy.smoothing, 0.05, 1))
 	end
 
-	local triggerReady = os.clock() - Potent.lastTrigger >= Potent.triggerDelay
+	local triggerReady = os.clock() - Galaxy.lastTrigger >= Galaxy.triggerDelay
 	local triggerHit = false
 	local aimPartVisible = aimPart and isVisible(aimPart)
 
-	if Potent.triggerbot and triggerReady then
+	if Galaxy.triggerbot and triggerReady then
 		if userInputService.TouchEnabled then
 			triggerHit = aimPartVisible == true
 		else
@@ -1779,29 +1765,29 @@ local function updateCombat()
 	end
 
 	if
-		Potent.triggerbot
+		Galaxy.triggerbot
 		and triggerReady
 		and (
 			triggerHit
 			or not userInputService.TouchEnabled
 				and aimPartVisible
 				and distance
-				and distance <= Potent.triggerRadius
+				and distance <= Galaxy.triggerRadius
 		)
 	then
-		Potent.lastTrigger = os.clock()
+		Galaxy.lastTrigger = os.clock()
 		firePrimaryWeapon()
 	end
 end
 
 ---Return compact target diagnostics from inside this script.
 ---@return table
-function Potent.scanTargets()
+function Galaxy.scanTargets()
 	local diagnostics = {
 		charactersFolder = workspace:FindFirstChild("Characters") ~= nil,
 		localPlayer = playersService.LocalPlayer and playersService.LocalPlayer.Name or nil,
-		revengeTargetUserId = Potent.revengeTargetUserId,
-		lastDamageEnemyUserId = Potent.lastDamageEnemyUserId,
+		revengeTargetUserId = Galaxy.revengeTargetUserId,
+		lastDamageEnemyUserId = Galaxy.lastDamageEnemyUserId,
 		total = 0,
 		valid = 0,
 		samples = {},
@@ -1845,17 +1831,22 @@ function Potent.scanTargets()
 end
 
 ---Initialize singleton state and runtime loops.
-function Potent.init()
+function Galaxy.init()
 	if shared.PotentMurderDuels then
 		shared.PotentMurderDuels.detach()
+		shared.PotentMurderDuels = nil
 	end
 
-	shared.PotentMurderDuels = Potent
+	if shared.GalaxyMurderDuels then
+		shared.GalaxyMurderDuels.detach()
+	end
+
+	shared.GalaxyMurderDuels = Galaxy
 	createGui()
 
 	runService:BindToRenderStep(RENDER_STEP_NAME, Enum.RenderPriority.Last.Value, function()
 		local ok, error = pcall(function()
-			Potent.frameCount += 1
+			Galaxy.frameCount += 1
 			updateDeathTracker()
 			updateCombat()
 			updateFovCircle()
@@ -1864,7 +1855,7 @@ function Potent.init()
 		end)
 
 		if not ok then
-			Potent.lastError = tostring(error)
+			Galaxy.lastError = tostring(error)
 			warn("Galaxy frame error: " .. tostring(error))
 		end
 	end)
@@ -1873,11 +1864,11 @@ end
 ---This is called when initialization errors.
 ---@param error string
 local function onInitializeError(error)
-	warn("Failed to initialize Potent.")
+	warn("Failed to initialize Galaxy.")
 	warn(error)
 	warn(debug.traceback())
-	Potent.detach()
+	Galaxy.detach()
 end
 
 -- Safely initialize the script and clean up failures.
-xpcall(Potent.init, onInitializeError)
+xpcall(Galaxy.init, onInitializeError)
