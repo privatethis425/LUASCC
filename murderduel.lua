@@ -73,6 +73,7 @@ local coreGuiService = game:GetService("CoreGui")
 local replicatedStorage = game:GetService("ReplicatedStorage")
 local guiService = game:GetService("GuiService")
 local virtualInputManager = game:GetService("VirtualInputManager")
+local starterGuiService = game:GetService("StarterGui")
 
 -- State.
 local localPlayer = playersService.LocalPlayer
@@ -1083,6 +1084,29 @@ local function createDrawing(drawingType)
 	return drawing
 end
 
+---Show a small Roblox notification without blocking script startup.
+---@param title string
+---@param text string
+local function notify(title, text)
+	task.spawn(function()
+		for _ = 1, 5 do
+			local success = pcall(function()
+				starterGuiService:SetCore("SendNotification", {
+					Title = title,
+					Text = text,
+					Duration = 5,
+				})
+			end)
+
+			if success then
+				return
+			end
+
+			task.wait(0.5)
+		end
+	end)
+end
+
 ---Return the Drawing ESP group for a character.
 ---@param character Model
 ---@return table
@@ -1269,6 +1293,8 @@ local function createToggle(parent, text, key)
 
 		updateToggleButton(button, text, key)
 	end)
+
+	return button
 end
 
 ---Create a numeric slider bound to a Galaxy setting.
@@ -1564,7 +1590,7 @@ local function createGui()
 	createSection(list, "COMBAT")
 	createToggle(list, "Aimbot", "aimbot")
 	createToggle(list, "Triggerbot", "triggerbot")
-	createToggle(list, "Instant Kill", "instantKill")
+	local instantKillButton = createToggle(list, isMobile and "Instant Kill" or "Instant Kill [T]", "instantKill")
 
 	createSection(list, "TARGETING")
 	createDropdown(list, "Aim Part", "aimPart", { "Head", "UpperTorso", "Torso", "HumanoidRootPart" })
@@ -1590,6 +1616,7 @@ local function createGui()
 	end)
 
 	local floatButton = Instance.new("TextButton")
+	floatButton.Name = "MobileToggleButton"
 	floatButton.BackgroundColor3 = ACCENT_COLOR
 	floatButton.BorderSizePixel = 0
 	floatButton.Font = Enum.Font.GothamBold
@@ -1599,10 +1626,16 @@ local function createGui()
 	floatButton.TextColor3 = Color3.fromRGB(8, 12, 18)
 	floatButton.TextSize = 20
 	floatButton.Visible = isMobile
+	floatButton.Active = true
 	floatButton.Parent = screenGui
 
 	addCorner(floatButton, 99)
 	addStroke(floatButton, Color3.fromRGB(235, 240, 255), 0.35)
+
+	local floatingDragging = false
+	local floatingMoved = false
+	local floatingDragStart = nil
+	local floatingFrameStart = nil
 
 	local function setOpen(open)
 		mainFrame.Visible = open
@@ -1614,7 +1647,41 @@ local function createGui()
 	end)
 
 	floatButton.MouseButton1Click:Connect(function()
+		if floatingMoved then
+			floatingMoved = false
+			return
+		end
+
 		setOpen(not mainFrame.Visible)
+	end)
+
+	floatButton.InputBegan:Connect(function(input)
+		if
+			input.UserInputType ~= Enum.UserInputType.MouseButton1
+			and input.UserInputType ~= Enum.UserInputType.Touch
+		then
+			return
+		end
+
+		floatingDragging = true
+		floatingMoved = false
+		floatingDragStart = input.Position
+		floatingFrameStart = floatButton.Position
+	end)
+
+	floatButton.InputEnded:Connect(function(input)
+		if
+			input.UserInputType == Enum.UserInputType.MouseButton1
+			or input.UserInputType == Enum.UserInputType.Touch
+		then
+			floatingDragging = false
+
+			task.delay(0.2, function()
+				if not floatingDragging then
+					floatingMoved = false
+				end
+			end)
+		end
 	end)
 
 	title.InputBegan:Connect(function(input)
@@ -1665,6 +1732,34 @@ local function createGui()
 
 	table.insert(
 		Galaxy.connections,
+		userInputService.InputChanged:Connect(function(input)
+			if not floatingDragging or not floatingDragStart or not floatingFrameStart then
+				return
+			end
+
+			if
+				input.UserInputType ~= Enum.UserInputType.MouseMovement
+				and input.UserInputType ~= Enum.UserInputType.Touch
+			then
+				return
+			end
+
+			local delta = input.Position - floatingDragStart
+			if math.abs(delta.X) > 4 or math.abs(delta.Y) > 4 then
+				floatingMoved = true
+			end
+
+			floatButton.Position = UDim2.new(
+				floatingFrameStart.X.Scale,
+				floatingFrameStart.X.Offset + delta.X,
+				floatingFrameStart.Y.Scale,
+				floatingFrameStart.Y.Offset + delta.Y
+			)
+		end)
+	)
+
+	table.insert(
+		Galaxy.connections,
 		userInputService.InputBegan:Connect(function(input, processed)
 			if processed then
 				return
@@ -1672,9 +1767,26 @@ local function createGui()
 
 			if input.KeyCode == Enum.KeyCode.P then
 				setOpen(not mainFrame.Visible)
+				return
+			end
+
+			if not isMobile and input.KeyCode == Enum.KeyCode.T then
+				Galaxy.instantKill = not Galaxy.instantKill
+
+				if Galaxy.instantKill then
+					Galaxy.lastInstantKillKey = nil
+					Galaxy.nextInstantKillAt = 0
+					Galaxy.roundWasLive = false
+				end
+
+				updateToggleButton(instantKillButton, "Instant Kill [T]", "instantKill")
 			end
 		end)
 	)
+
+	if not isMobile then
+		notify("Galaxy", "Toggle P open and close")
+	end
 end
 
 ---Create and update the FOV circle drawing.
