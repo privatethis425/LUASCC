@@ -747,14 +747,6 @@ local function firePrimaryWeapon(targetCharacter, hitPart)
 
 	if userInputService.TouchEnabled then
 		tapGameAttackInput()
-		clickPrimaryInput()
-		clickVirtualPrimaryInput()
-		clickMobileFireButtons()
-		fireCharacterPrimaryInput()
-
-		if tool then
-			activateTool(tool)
-		end
 
 		reportGunHit(targetCharacter, hitPart)
 
