@@ -84,6 +84,19 @@ local frameStart = nil
 local trackedCharacter = nil
 local trackedHumanoid = nil
 
+---Return the screen point used by aim and trigger features.
+---@return Vector2
+local function getAimScreenPosition()
+	currentCamera = workspace.CurrentCamera
+
+	if userInputService.TouchEnabled and currentCamera then
+		return Vector2.new(currentCamera.ViewportSize.X / 2, currentCamera.ViewportSize.Y / 2)
+	end
+
+	local mousePosition = userInputService:GetMouseLocation()
+	return Vector2.new(mousePosition.X, mousePosition.Y)
+end
+
 -- Body part names keep ESP locked to the avatar instead of weapons/accessories.
 local bodyPartNames = {
 	Head = true,
@@ -423,6 +436,100 @@ local function equipKnife()
 	return nil
 end
 
+---Return the currently equipped tool.
+---@return Tool?
+local function getEquippedTool()
+	localPlayer = playersService.LocalPlayer
+
+	local character = localPlayer and localPlayer.Character
+	if not character then
+		return nil
+	end
+
+	for _, child in ipairs(character:GetChildren()) do
+		if child:IsA("Tool") then
+			return child
+		end
+	end
+
+	return nil
+end
+
+---Equip a combat tool for mobile activation.
+---@return Tool?
+local function equipCombatTool()
+	local equippedTool = getEquippedTool()
+	if equippedTool then
+		return equippedTool
+	end
+
+	localPlayer = playersService.LocalPlayer
+
+	local character = localPlayer and localPlayer.Character
+	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+	local backpack = localPlayer and localPlayer:FindFirstChildOfClass("Backpack")
+	if not humanoid or not backpack then
+		return nil
+	end
+
+	local preferredNames = {
+		"Revolver",
+		"Gun",
+		"Pistol",
+		"Knife",
+	}
+
+	for _, toolName in ipairs(preferredNames) do
+		local tool = backpack:FindFirstChild(toolName)
+		if tool and tool:IsA("Tool") then
+			humanoid:EquipTool(tool)
+			task.wait()
+			return getEquippedTool() or tool
+		end
+	end
+
+	for _, tool in ipairs(backpack:GetChildren()) do
+		if tool:IsA("Tool") then
+			humanoid:EquipTool(tool)
+			task.wait()
+			return getEquippedTool() or tool
+		end
+	end
+
+	return nil
+end
+
+---Fire the local weapon across PC and mobile input modes.
+local function firePrimaryWeapon()
+	local tool = equipCombatTool()
+
+	if userInputService.TouchEnabled and tool then
+		pcall(function()
+			tool:Activate()
+		end)
+
+		return
+	end
+
+	if mouse1click then
+		pcall(mouse1click)
+		return
+	end
+
+	if mouse1press and mouse1release then
+		pcall(mouse1press)
+		task.delay(0.018, function()
+			pcall(mouse1release)
+		end)
+	end
+
+	if tool then
+		pcall(function()
+			tool:Activate()
+		end)
+	end
+end
+
 ---Return whether an enemy is still killable in the current match.
 ---@param enemy Model
 ---@return boolean
@@ -657,7 +764,7 @@ local function getClosestTarget()
 		return nil
 	end
 
-	local mousePos = userInputService:GetMouseLocation()
+	local mousePos = getAimScreenPosition()
 	local closestCharacter = nil
 	local closestPart = nil
 	local closestDistance = math.huge
@@ -1122,7 +1229,7 @@ local function createGui()
 	titleLabel.Font = Enum.Font.GothamBold
 	titleLabel.Position = UDim2.new(0, 28, 0, 0)
 	titleLabel.Size = UDim2.new(1, -78, 1, 0)
-	titleLabel.Text = "GAlaxy"
+	titleLabel.Text = "Potent"
 	titleLabel.TextColor3 = TEXT_COLOR
 	titleLabel.TextSize = isMobile and 16 or 17
 	titleLabel.TextXAlignment = Enum.TextXAlignment.Left
@@ -1311,8 +1418,8 @@ local function updateFovCircle()
 		Potent.fovDrawing.NumSides = 96
 	end
 
-	local mousePos = userInputService:GetMouseLocation()
-	Potent.fovDrawing.Position = Vector2.new(mousePos.X, mousePos.Y)
+	local mousePos = getAimScreenPosition()
+	Potent.fovDrawing.Position = mousePos
 	Potent.fovDrawing.Radius = Potent.fovRadius
 	Potent.fovDrawing.Visible = Potent.fovCircle
 end
@@ -1327,7 +1434,7 @@ local function shouldTrigger()
 		return false
 	end
 
-	local mousePos = userInputService:GetMouseLocation()
+	local mousePos = getAimScreenPosition()
 	local rayHit, rayCharacter = getMouseRayTarget(mousePos)
 
 	if rayHit then
@@ -1409,8 +1516,12 @@ local function stabEnemyWithKnife(enemy)
 			end)
 		end
 
-		mouse1press()
-		task.delay(0.012, mouse1release)
+		if mouse1press and mouse1release then
+			pcall(mouse1press)
+			task.delay(0.012, function()
+				pcall(mouse1release)
+			end)
+		end
 		reportHitRemote:FireServer({ forceShow = true })
 		reportHitRemote:FireServer({
 			kind = "melee",
@@ -1653,8 +1764,7 @@ local function updateCombat()
 		and (triggerHit or aimPart and isVisible(aimPart) and distance and distance <= Potent.triggerRadius)
 	then
 		Potent.lastTrigger = os.clock()
-		mouse1press()
-		task.delay(0.018, mouse1release)
+		firePrimaryWeapon()
 	end
 end
 
