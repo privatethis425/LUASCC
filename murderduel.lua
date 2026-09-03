@@ -1229,7 +1229,7 @@ local function createGui()
 	titleLabel.Font = Enum.Font.GothamBold
 	titleLabel.Position = UDim2.new(0, 28, 0, 0)
 	titleLabel.Size = UDim2.new(1, -78, 1, 0)
-	titleLabel.Text = "Potent"
+	titleLabel.Text = "Galaxy"
 	titleLabel.TextColor3 = TEXT_COLOR
 	titleLabel.TextSize = isMobile and 16 or 17
 	titleLabel.TextXAlignment = Enum.TextXAlignment.Left
