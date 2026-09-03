@@ -85,6 +85,7 @@ local dragStart = nil
 local frameStart = nil
 local trackedCharacter = nil
 local trackedHumanoid = nil
+local inputMapModule = nil
 
 ---Return the screen point used by aim and trigger features.
 ---@return Vector2
@@ -92,7 +93,12 @@ local function getAimScreenPosition()
 	currentCamera = workspace.CurrentCamera
 
 	if userInputService.TouchEnabled and currentCamera then
-		return Vector2.new(currentCamera.ViewportSize.X / 2, currentCamera.ViewportSize.Y / 2)
+		local cursorGui = localPlayer
+			and localPlayer:FindFirstChildOfClass("PlayerGui")
+			and localPlayer.PlayerGui:FindFirstChild("Cursor")
+		local viewportHeight = cursorGui and cursorGui.AbsoluteSize.Y or currentCamera.ViewportSize.Y
+
+		return Vector2.new(currentCamera.ViewportSize.X / 2, viewportHeight / 2)
 	end
 
 	local mousePosition = userInputService:GetMouseLocation()
@@ -532,7 +538,7 @@ local function getFireScreenPosition()
 	currentCamera = workspace.CurrentCamera
 
 	if currentCamera then
-		local viewportCenter = Vector2.new(currentCamera.ViewportSize.X / 2, currentCamera.ViewportSize.Y / 2)
+		local viewportCenter = getAimScreenPosition()
 		local inset = guiService:GetGuiInset()
 		return viewportCenter + Vector2.new(inset.X, inset.Y)
 	end
@@ -571,6 +577,33 @@ local function clickVirtualPrimaryInput()
 	end)
 end
 
+---Use the game's input mapper so RevolverClient receives the same attack event.
+local function tapGameAttackInput()
+	if not inputMapModule then
+		local oldIdentity = getthreadidentity and getthreadidentity() or nil
+
+		pcall(function()
+			if setthreadidentity then
+				setthreadidentity(2)
+			end
+
+			inputMapModule = require(replicatedStorage:WaitForChild("Extensions"):WaitForChild("InputMap"))
+		end)
+
+		pcall(function()
+			if setthreadidentity then
+				setthreadidentity(oldIdentity or 8)
+			end
+		end)
+	end
+
+	if inputMapModule and inputMapModule.tap then
+		pcall(function()
+			inputMapModule.tap("Attack")
+		end)
+	end
+end
+
 ---Return whether a GUI button looks like a mobile fire control.
 ---@param button GuiButton
 ---@return boolean
@@ -583,9 +616,7 @@ local function isMobileFireButton(button)
 		or buttonName:find("attack")
 		or buttonName:find("combat")
 		or buttonName:find("primary")
-		or buttonName:find("gun")
 		or buttonName:find("m1")
-		or buttonName:find("use")
 	local matchedText = buttonText:find("fire")
 		or buttonText:find("shoot")
 		or buttonText:find("shot")
@@ -593,7 +624,6 @@ local function isMobileFireButton(button)
 		or buttonText:find("combat")
 		or buttonText:find("primary")
 		or buttonText:find("m1")
-		or buttonText:find("use")
 
 	if matchedName or matchedText then
 		return true
@@ -716,6 +746,7 @@ local function firePrimaryWeapon(targetCharacter, hitPart)
 	local tool = equipCombatTool()
 
 	if userInputService.TouchEnabled then
+		tapGameAttackInput()
 		clickPrimaryInput()
 		clickVirtualPrimaryInput()
 		clickMobileFireButtons()
